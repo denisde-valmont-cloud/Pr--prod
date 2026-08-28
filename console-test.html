@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MPA — Console de test (back-office)</title>
+<style>
+  :root{--purple:#7A2D6B;--teal:#3F7067;--paper:#FBF9F6;--line:#EBE5DE;--ink:#2A2433;--muted:#8C8492;--bad:#C0492F;--good:#2E7D5B;--goldLt:#FBEFD6;--goldDk:#B9851F}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:14px}
+  .wrap{max-width:640px;margin:0 auto;padding:24px}
+  .warn{background:var(--goldLt);color:var(--goldDk);border-radius:12px;padding:12px 16px;font-size:12.5px;line-height:1.5;margin-bottom:18px}
+  h1{font-size:19px;color:var(--purple);margin:0 0 4px}
+  .sub{color:var(--muted);font-size:12.5px;margin-bottom:20px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px}
+  h2{font-size:14px;margin:0 0 12px}
+  .row{display:flex;gap:10px;flex-wrap:wrap}
+  .f{flex:1 1 140px;margin-bottom:10px}
+  .f label{display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px}
+  .in{padding:9px 11px;border:1px solid var(--line);border-radius:10px;font-size:13px;width:100%;font-family:inherit}
+  select.in{background:#fff}
+  .btn{border:none;border-radius:10px;padding:10px 16px;font-weight:700;font-size:13px;cursor:pointer;color:#fff;background:var(--purple);width:100%}
+  .btn:disabled{background:var(--muted);cursor:default}
+  .result{margin-top:14px;padding:13px 15px;border-radius:11px;font-size:13px;line-height:1.5;display:none}
+  .result.ok{display:block;background:#E5F2EB;color:var(--good)}
+  .result.err{display:block;background:#FBEAE6;color:var(--bad)}
+  .result a{color:var(--purple);font-weight:700;word-break:break-all}
+  code{background:var(--paper);padding:1px 5px;border-radius:5px}
+  .list{margin-top:8px;display:grid;gap:8px}
+  .item{border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:12.5px;display:flex;justify-content:space-between;gap:10px;align-items:center}
+  .item a{color:var(--teal);font-weight:700;text-decoration:none;white-space:nowrap}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="warn">⚠️ Console de test — usage temporaire uniquement. Elle appelle directement l'API back-office (<code>/api/backoffice/preinscriptions</code>) pour créer des dossiers de test. À supprimer avant la mise en production réelle.</div>
+  <h1>MPA — Console de test</h1>
+  <div class="sub">Crée un dossier aidant et génère son lien d'activation.</div>
+
+  <div class="card">
+    <h2>Nouvelle pré-inscription</h2>
+    <div class="row">
+      <div class="f"><label>Prénom (aidant)</label><input class="in" id="prenom" value="Jean"></div>
+      <div class="f"><label>Nom (aidant)</label><input class="in" id="nom" value="Dupont"></div>
+    </div>
+    <div class="row">
+      <div class="f" style="flex:2 1 220px"><label>Email</label><input class="in" id="email" value="jean.dupont@example.com"></div>
+      <div class="f" style="flex:1 1 100px"><label>NDD (1 à 4)</label>
+        <select class="in" id="ndd"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select></div>
+      <div class="f" style="flex:1 1 120px"><label>Montant crédit (€)</label><input class="in" id="montant" value="887"></div>
+    </div>
+    <div style="font-size:11px;font-weight:800;color:var(--muted);margin:6px 0 8px">PROCHE FAMILIAL DÉPENDANT (PFD PRINCIPAL — OBLIGATOIRE)</div>
+    <div class="row">
+      <div class="f"><label>Prénom du proche</label><input class="in" id="pfd-prenom" value="Jeanne"></div>
+      <div class="f"><label>Lien de parenté</label>
+        <select class="in" id="pfd-lien">
+          <option>Enfant</option><option>Frère</option><option>Sœur</option>
+          <option>Conjoint</option><option>Père</option><option selected>Mère</option>
+        </select></div>
+      <div class="f" style="flex:0 1 130px"><label>Année de naissance</label><input class="in" id="pfd-naissance" value="1945"></div>
+    </div>
+    <button class="btn" id="btn-creer">Créer le dossier</button>
+    <div class="result" id="result"></div>
+  </div>
+
+  <div class="card">
+    <h2>Dossiers créés dans cette session</h2>
+    <div class="muted" style="font-size:11.5px;color:var(--muted)">Cette liste n'est pas persistée — elle disparaît si vous rechargez la page. Les dossiers eux-mêmes restent sur le serveur.</div>
+    <div class="list" id="list"></div>
+  </div>
+</div>
+
+<script>
+const API = location.origin;
+const created = [];
+
+function renderList(){
+  const el = document.getElementById("list");
+  if(!created.length){ el.innerHTML = '<div style="font-size:12px;color:var(--muted);margin-top:8px">Aucun dossier créé pour l\'instant.</div>'; return; }
+  el.innerHTML = created.map(c => `
+    <div class="item">
+      <span><b>${c.nom}</b> — <code>${c.id}</code></span>
+      <a href="/?a=${encodeURIComponent(c.id)}" target="_blank">Ouvrir le portail ›</a>
+    </div>`).join("");
+}
+renderList();
+
+document.getElementById("btn-creer").addEventListener("click", async () => {
+  const btn = document.getElementById("btn-creer");
+  const result = document.getElementById("result");
+  const body = {
+    prenom: document.getElementById("prenom").value.trim(),
+    nom: document.getElementById("nom").value.trim(),
+    email: document.getElementById("email").value.trim(),
+    ndd: Number(document.getElementById("ndd").value),
+    montant: document.getElementById("montant").value.trim(),
+    pfd: {
+      prenom: document.getElementById("pfd-prenom").value.trim(),
+      lien: document.getElementById("pfd-lien").value,
+      naissance: document.getElementById("pfd-naissance").value.trim(),
+      ndd: Number(document.getElementById("ndd").value),
+    },
+  };
+  btn.disabled = true; btn.textContent = "Création…";
+  result.className = "result"; result.textContent = "";
+  try{
+    const res = await fetch(API + "/api/backoffice/preinscriptions", {
+      method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || ("HTTP " + res.status));
+    const lien = `${API}/?a=${encodeURIComponent(data.id)}`;
+    result.className = "result ok";
+    result.innerHTML = `✓ Dossier créé : <b>${data.nom_complet}</b> (id <code>${data.id}</code>)<br>
+      Lien d'activation : <a href="${lien}" target="_blank">${lien}</a>`;
+    created.unshift({id: data.id, nom: data.nom_complet});
+    renderList();
+  }catch(e){
+    result.className = "result err";
+    result.textContent = "Erreur : " + e.message;
+  }finally{
+    btn.disabled = false; btn.textContent = "Créer le dossier";
+  }
+});
+</script>
+</body>
+</html>

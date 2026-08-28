@@ -49,6 +49,7 @@ import core
 import catalogue
 
 HTML_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "aidant.html")
+CONSOLE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "console-test.html")
 
 
 class App:
@@ -134,13 +135,12 @@ class Handler(BaseHTTPRequestHandler):
     def _err(self, msg, status=400):
         self._json({"error": str(msg)}, status)
 
-    def _serve_html(self):
+    def _serve_html(self, path=HTML_PATH, missing_note="aidant.html absent — placez-le à côté de api.py"):
         try:
-            with open(HTML_PATH, "rb") as f:
+            with open(path, "rb") as f:
                 body = f.read()
         except FileNotFoundError:
-            return self._json({"service": "MPA Portail Aidant", "ok": True,
-                               "note": "aidant.html absent — placez-le à côté de api.py"})
+            return self._json({"service": "MPA Portail Aidant", "ok": True, "note": missing_note})
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self._cors()
@@ -173,6 +173,9 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if not parts or parts == ["aidant.html"]:
                 return self._serve_html()
+
+            if parts == ["console-test.html"]:
+                return self._serve_html(CONSOLE_PATH, "console-test.html absent — placez-le à côté de api.py")
 
             if parts == ["api", "diag"]:
                 key = os.environ.get("ANTHROPIC_API_KEY")
