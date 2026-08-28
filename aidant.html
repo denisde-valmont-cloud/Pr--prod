@@ -1,0 +1,1200 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mon Parcours Aidant — Espace aidant</title>
+<style>
+  /* Charte MPA (identique au maquettage validé) */
+  :root{
+    --purple:#7A2D6B; --purpleLt:#F3E8F0; --gold:#E2A93B; --goldDk:#B9851F; --goldLt:#FBEFD6;
+    --teal:#3F7067; --tealMid:#5E9C92; --tealLt:#E4EFEC; --blue:#2F5DA8; --blueLt:#EAF0FA;
+    --ink:#2A2433; --paper:#FBF9F6; --card:#FFFFFF; --line:#EBE5DE; --muted:#8C8492;
+    --good:#2E7D5B; --bad:#C0492F;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);
+    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:14px}
+  .wrap{max-width:1040px;margin:0 auto;padding:18px}
+  .top{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:6px;padding:8px 0}
+  .ptitle{font-weight:800;font-size:22px;color:var(--purple);letter-spacing:-.5px;line-height:1.05}
+  .ptitle small{display:block;font-weight:600;font-size:11px;color:var(--muted);letter-spacing:0}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:18px;margin-bottom:14px}
+  h2{font-size:15px;margin:0 0 12px;color:var(--ink)}
+  h2 .sub{font-weight:500;color:var(--muted);font-size:12px}
+  .btn{border:none;border-radius:10px;padding:9px 14px;font-weight:700;font-size:13px;cursor:pointer;color:#fff;background:var(--purple);font-family:inherit}
+  .btn.teal{background:var(--teal)} .btn.gold{background:var(--goldDk)}
+  .btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
+  .btn:disabled{background:var(--muted);cursor:default;opacity:.6}
+  input,select,textarea{font-family:inherit}
+  .in{padding:9px 11px;border:1px solid var(--line);border-radius:10px;font-size:13px;width:100%}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+  .f{flex:1 1 140px} .f label{display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px}
+  .chip{display:inline-block;font-size:11px;font-weight:800;padding:3px 9px;border-radius:7px}
+  .pmv{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px}
+  .stat{flex:1 1 130px;background:var(--paper);border-radius:12px;padding:11px 13px}
+  .stat b{display:block;font-size:20px} .stat span{font-size:11px;color:var(--muted);font-weight:600}
+  .muted{color:var(--muted)}
+  .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:#fff;
+    padding:11px 16px;border-radius:11px;font-weight:600;font-size:13px;box-shadow:0 10px 30px rgba(0,0,0,.2);
+    opacity:0;transition:opacity .2s;pointer-events:none;max-width:480px;z-index:50}
+  .toast.show{opacity:1} .toast.err{background:var(--bad)}
+  .empty{padding:24px;text-align:center;color:var(--muted)}
+  .ptip{position:relative;cursor:help;border-bottom:1px dotted var(--muted)}
+  .ptip .ptip-box{display:none;position:absolute;left:0;bottom:calc(100% + 8px);z-index:40;width:310px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;box-shadow:0 10px 26px rgba(0,0,0,.14);font-weight:400;font-size:12px;line-height:1.5;color:var(--ink);white-space:normal;text-align:left}
+  .ptip:hover .ptip-box{display:block}
+  /* Bloc PMV clair (chiffres + équations) */
+  .pmvbloc{display:flex;flex-direction:column;gap:9px}
+  .eq{display:flex;align-items:stretch;gap:7px;flex-wrap:wrap}
+  .pmt{flex:1 1 120px;min-width:104px;border:1px solid var(--line);border-radius:12px;padding:9px 12px;background:#fff}
+  .pmt .l{font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+  .pmt .v{font-size:18px;font-weight:800;color:var(--ink);margin-top:3px}
+  .pmt.solde{background:var(--purpleLt);border-color:transparent}
+  .pmt.solde .v{color:var(--purple)}
+  .pmt.dispo{background:var(--tealLt);border-color:var(--teal)}
+  .pmt.dispo .v{color:var(--teal)}
+  .op{display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;color:var(--muted);min-width:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><div class="ptitle">Mon Parcours Aidant<small>par Assur-aidant · Garantie de Soutien aux Aidants</small></div></div>
+  <div id="panel"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ╔════════════════════════════════════════════════════════════════════════╗
+   ║  MPA — Portail Aidant (pré-production). SOMMAIRE                        ║
+   ║   §1  État & accès API (STATE, refresh, api, toast)                     ║
+   ║   §2  Rendu (render → viewAidant)                                       ║
+   ║   §3  Interface aidant : PMV, profils (aidant & PFD), analyse           ║
+   ║       situationnelle, évaluation des besoins (taxonomie fermée),        ║
+   ║       catalogue aidance-pro (connecteur), devis, remboursements,        ║
+   ║       contact conseiller (humain, jamais un bot)                        ║
+   ║   §4  Écouteurs d'événements                                            ║
+   ║  Règles : PMV utilisable après profil aidant (RIB) + profil du PFD      ║
+   ║  principal (RG-42) ; les transitions « pro » (chiffrage, réalisation)   ║
+   ║  arrivent par l'API partenaire aidance-pro — jamais simulées ici.       ║
+   ╚════════════════════════════════════════════════════════════════════════╝ */
+
+/* ═══════ §1 · État & accès API ═══════ */
+const API = location.protocol.indexOf("http")===0 ? location.origin : "http://127.0.0.1:8765";
+const QP = new URLSearchParams(location.search);
+const AIDANT_ID = QP.get("a") || "";        // lien d'activation : /?a=<id_assure>
+let STATE = null;
+
+const $ = (s,r=document)=>r.querySelector(s);
+const eur = s => s==null ? "—" : Number(s).toLocaleString("fr-FR",{minimumFractionDigits:2,maximumFractionDigits:2})+" €";
+const esc = s => (s==null?"":String(s)).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+
+function toast(msg, err=false){
+  const t=$("#toast"); t.textContent=msg; t.className="toast show"+(err?" err":"");
+  setTimeout(()=>t.className="toast", 2600);
+}
+async function api(method, path, body){
+  const res = await fetch(API+path, {method, headers:{"Content-Type":"application/json"},
+    body: body!==undefined ? JSON.stringify(body) : undefined});
+  let data={}; try{ data=await res.json(); }catch(e){}
+  if(!res.ok) throw new Error(data.error || ("HTTP "+res.status));
+  return data;
+}
+async function refresh(){
+  if(!AIDANT_ID){
+    $("#panel").innerHTML = `<div class="card empty">Lien d'activation requis.<br>
+      Ouvrez le lien personnel qui vous a été adressé par votre gestionnaire
+      (<code>/?a=&lt;identifiant&gt;</code>).</div>`;
+    return;
+  }
+  try{
+    const [a, cat] = await Promise.all([
+      api("GET","/api/assures/"+encodeURIComponent(AIDANT_ID)),
+      api("GET","/api/catalogue"),
+    ]);
+    STATE = { assure:a, assures:[a], devis:a.devis||[], remboursements:a.remboursements||[],
+      pros:cat.pros||[], prestations:cat.prestations||[], depts:cat.depts||[], source:cat.source||"" };
+  }catch(e){
+    $("#panel").innerHTML = `<div class="card empty">Impossible de charger votre dossier : ${esc(e.message)}.<br>
+      Vérifiez votre lien d'activation ou contactez votre gestionnaire.</div>`;
+    return;
+  }
+  render();
+}
+
+/* ═══════ §2 · Rendu ═══════ */
+function render(){ if(STATE) $("#panel").innerHTML = viewAidant(); }
+
+/* ═══════ §3 · Interface aidant ═══════ */
+const A_TACHES=[["administratif","Démarches administratives"],["rdv_medicaux","RDV médicaux"],["transport","Transports"],["actes_quotidien","Actes de la vie quotidienne"],["soutien_moral","Soutien moral"],["coordination","Coordination des intervenants"]];
+const A_CHARGE=[["fatigue","Fatigue / épuisement"],["sommeil","Nuits difficiles"],["isolement","Isolement"],["repit","Besoin de répit"],["pro","Impact sur ma vie pro"]];
+const A_LIENS=["Enfant","Frère","Sœur","Conjoint","Père","Mère"];
+/* Taxonomie FERMÉE de l'orientation (RG-60) : aucun besoin hors de cette liste. */
+const A_TAXO=[["assistance_administrative","Assistance administrative"],["logement_adaptation","Adaptation du logement / ergothérapie"],["logement_social","Logement social"],["aide_domicile","Aide à domicile (actes quotidiens)"],["soutien_psychologique","Soutien psychologique"],["repit","Répit de l'aidant"],["mobilite_transport","Mobilité / transport"],["formation_aidant","Formation de l'aidant"],["accompagnement_independance","Accompagnement vers l'indépendance"]];
+const A_TAXO_LABEL=id=>{const t=A_TAXO.find(x=>x[0]===id);return t?t[1]:id;};
+const A_TAXO_IDS=A_TAXO.map(t=>t[0]);
+const A_TAXO_FAMILLE={assistance_administrative:"Aide administrative",logement_adaptation:"Aide matérielle",logement_social:"Aide administrative",aide_domicile:"Aide humaine",soutien_psychologique:"Aide psycho-affective",repit:"Aide au parcours de vie",mobilite_transport:"Aide matérielle",formation_aidant:"Aide au parcours de vie",accompagnement_independance:"Aide au parcours de vie"};
+
+const A_MOD={distanciel:"À distance",presentiel_aidant:"Chez l'aidant",presentiel_pro:"Chez le pro"};
+const A_UNITE={"Par heure":"/ heure","Par jour":"/ jour","Prestation complète":"forfait"};
+const A_LBL={0:["Premium","var(--gold)","var(--goldLt)"],1:["Labellisé","var(--purple)","var(--purpleLt)"],2:["Autre","var(--muted)","#F0EDEA"]};
+const A_uniq=a=>[...new Set(a)].sort((x,y)=>x.localeCompare(y,"fr"));
+/* Catalogue servi par le connecteur aidance-pro : vide tant que l'API n'est pas branchée. */
+function A_proNom(pid){ const p=((STATE&&STATE.pros)||[]).find(x=>x.id===pid); return p?p.nom:pid; }
+function A_rows(){ return ((STATE&&STATE.prestations)||[]).map(p=>({
+  id:p.id, pid:p.pid, pro:A_proNom(p.pro_id), pro_id:p.pro_id, rank:Number(p.rank),
+  metiers:p.metiers||[], familles:p.familles||[], mod:p.mod||[], nat:!!p.nat,
+  deps:p.deps||[], prix:(p.prix==null?null:Number(p.prix)), unite:p.unite, nom:p.nom, desc:p.desc||"" })); }
+function A_deptsList(){ return (STATE&&STATE.depts)||[]; }
+function A_famillesList(){ return A_uniq(A_rows().flatMap(r=>r.familles)); }
+function A_metiersList(){ return A_uniq(A_rows().flatMap(r=>r.metiers)); }
+
+function aidSeed(){ return {
+  tab:"accueil", boundTo:null, taches:[], charge:[],
+  recit:"", consent:false, loading:false, aiNote:null, besoins:[], relances:[], reponses:{}, parcours:[],
+  cat:{famille:"",metier:"",modalite:"",dept:""}, profilEdit:false, pfdEdit:null, pfdAddOpen:false,
+  demandePid:null, dossierOpen:false,
+  analyseTexte:"", analyseEdit:false, analyseLoading:false }; }
+let AID = aidSeed();
+
+/* ── Contact conseiller : présence humaine à tout moment — jamais un bot.
+     Les demandes sont enregistrées côté serveur (relayées au CRM en prod). ── */
+const CONTACT_TEL = "0 806 000 000";                 /* PROD : numéro définitif à poser ici */
+const CONTACT_HORAIRES = "du lundi au vendredi, 9 h – 18 h";
+let CX = { open:false, mode:"rappel" };
+const CX_TYPE = { rappel:"Demande de rappel", message:"Message", rdv:"Demande de rendez-vous" };
+
+function contactBanner(a){
+  return `<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--purpleLt);border:1px solid #E7D3E2;border-radius:13px;padding:11px 15px;margin-bottom:14px">
+    <span style="font-size:20px">🤝</span>
+    <div style="flex:1 1 220px;font-size:12.5px;line-height:1.4"><b>Vous n'êtes pas seul.</b> Un conseiller Assur-aidant peut vous accompagner à tout moment, par téléphone ou sur rendez-vous.</div>
+    <a class="btn ghost" href="tel:${CONTACT_TEL.replace(/\s/g,"")}" style="text-decoration:none">☎ ${CONTACT_TEL}</a>
+    <button class="btn" data-act="cx-open" data-mode="rappel">Être rappelé(e)</button>
+  </div>`;
+}
+function contactLauncher(a){
+  const n=(a.contacts||[]).length;
+  return `<button class="btn" data-act="cx-toggle" style="position:fixed;right:22px;bottom:22px;z-index:60;box-shadow:0 10px 28px rgba(122,45,107,.35);padding:12px 18px;border-radius:30px;font-size:14px">☎ Contacter un conseiller${n?` <span class="chip" style="background:rgba(255,255,255,.25);color:#fff">${n}</span>`:""}</button>`;
+}
+function contactPanel(a){
+  if(!CX.open) return "";
+  const tel=a.telephone||"";
+  const tab=(id,lab)=>`<button class="btn ${CX.mode===id?'':'ghost'}" data-act="cx-tab" data-mode="${id}" style="flex:1;padding:8px 6px;font-size:12px">${lab}</button>`;
+  let form="";
+  if(CX.mode==="rappel"){
+    form=`<div class="f"><label>Votre nom</label><input class="in" id="cx-nom" value="${esc(a.nom_complet||"")}"></div>
+      <div class="f"><label>Téléphone où vous rappeler</label><input class="in" id="cx-tel" value="${esc(tel)}" placeholder="06 …"></div>
+      <div class="f"><label>Quand souhaitez-vous être rappelé(e) ?</label><select class="in" id="cx-creneau"><option>Dès que possible</option><option>Ce matin</option><option>Cet après-midi</option><option>En fin de journée</option><option>Demain</option></select></div>
+      <div class="f"><label>Motif (facultatif)</label><input class="in" id="cx-motif" placeholder="ex. Aide pour un dossier MDPH"></div>
+      <button class="btn" data-act="cx-send-rappel" style="width:100%;margin-top:4px">Demander à être rappelé(e)</button>`;
+  } else if(CX.mode==="message"){
+    form=`<div class="f"><label>Sujet</label><input class="in" id="cx-sujet" placeholder="ex. Question sur mon PMV"></div>
+      <div class="f"><label>Votre message</label><textarea class="in" id="cx-msg" rows="4" style="resize:vertical"></textarea></div>
+      <div class="f"><label>Réponse souhaitée par</label><select class="in" id="cx-canal"><option>Téléphone</option><option>Email</option></select></div>
+      <button class="btn" data-act="cx-send-message" style="width:100%;margin-top:4px">Envoyer mon message</button>`;
+  } else {
+    form=`<div class="f"><label>Type de rendez-vous</label><select class="in" id="cx-rdv-type"><option>Par téléphone</option><option>En visio</option><option>En agence</option></select></div>
+      <div class="f"><label>Jour / période souhaités</label><input class="in" id="cx-rdv-quand" placeholder="ex. jeudi après-midi"></div>
+      <div class="f"><label>Téléphone</label><input class="in" id="cx-rdv-tel" value="${esc(tel)}" placeholder="06 …"></div>
+      <button class="btn" data-act="cx-send-rdv" style="width:100%;margin-top:4px">Demander un rendez-vous</button>`;
+  }
+  const ds=a.contacts||[];
+  const liste = ds.length ? `<div style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px">
+      <div style="font-size:11.5px;font-weight:800;color:var(--muted);margin-bottom:8px">MES DEMANDES</div>
+      <div style="display:grid;gap:8px">${ds.map(d=>`<div style="background:var(--paper);border-radius:10px;padding:9px 11px">
+        <div style="display:flex;justify-content:space-between;gap:8px"><b style="font-size:12.5px">${CX_TYPE[d.type]||d.type}</b><span class="muted" style="font-size:11px">${esc(d.date)}</span></div>
+        ${d.resume?`<div class="muted" style="font-size:11.5px;margin-top:2px">${esc(d.resume)}</div>`:""}
+        <span class="chip" style="margin-top:6px;display:inline-block;color:var(--good);background:var(--tealLt)">✓ Transmise — un conseiller vous recontactera</span></div>`).join("")}</div></div>` : "";
+  return `<div style="position:fixed;right:22px;bottom:84px;z-index:60;width:360px;max-width:calc(100vw - 44px);max-height:calc(100vh - 130px);overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:0 18px 50px rgba(0,0,0,.22);padding:16px">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:6px">
+      <div style="font-weight:800;font-size:15px;color:var(--purple)">Un conseiller vous accompagne</div>
+      <button class="btn ghost" data-act="cx-toggle" style="padding:2px 9px;border:none;font-size:17px;line-height:1">✕</button></div>
+    <div class="muted" style="font-size:12px;line-height:1.45;margin-bottom:12px">Nos conseillers Assur-aidant sont là pour vos démarches. Choisissez ce qui vous convient — un humain vous recontacte.</div>
+    <a href="tel:${CONTACT_TEL.replace(/\s/g,"")}" style="text-decoration:none;display:flex;align-items:center;gap:10px;background:var(--tealLt);border-radius:11px;padding:11px 13px;margin-bottom:12px">
+      <span style="font-size:18px">☎</span><div><div style="font-weight:800;font-size:14px;color:var(--teal)">${CONTACT_TEL}</div><div class="muted" style="font-size:11px">${CONTACT_HORAIRES} · prix d'un appel local</div></div></a>
+    <div style="display:flex;gap:6px;margin-bottom:12px">${tab("rappel","Être rappelé(e)")}${tab("message","Nous écrire")}${tab("rdv","Rendez-vous")}</div>
+    ${form}${liste}</div>`;
+}
+
+function aChips(items,active,act,color){
+  return `<div style="display:flex;gap:7px;flex-wrap:wrap">`+items.map(([id,label])=>{
+    const on=active.includes(id);
+    return `<button class="chip" data-act="${act}" data-v="${esc(id)}" style="cursor:pointer;padding:7px 12px;font-weight:600;font-size:12.5px;border:1px solid ${on?color:'var(--line)'};background:${on?color+'1F':'#fff'};color:${on?'var(--ink)':'var(--muted)'}">${esc(label)}</button>`;
+  }).join("")+`</div>`;
+}
+
+function viewAidant(){
+  const a=STATE.assure;
+  const bkey=a.id+":"+(a.aides||[]).length;
+  if(AID.boundTo!==bkey){
+    AID.taches=[]; AID.charge=[]; AID.recit=""; AID.consent=false; AID.loading=false;
+    AID.aiNote=null; AID.besoins=[]; AID.relances=[]; AID.reponses={}; AID.parcours=[];
+    AID.boundTo=bkey;
+  }
+  const proche=(a.aides&&a.aides[0]&&a.aides[0].prenom)?` auprès de ${esc(a.aides[0].prenom)}`:"";
+  const pmvCard=`<div class="card" style="margin-bottom:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:10px">
+      <div><div style="font-weight:800;font-size:15px;color:var(--ink)">Votre garantie de soutien aux aidants</div>
+        <div class="muted" style="font-size:11.5px;margin-top:2px">Un budget pour faciliter votre rôle d'aidant${proche}.</div></div>
+      <span class="chip" style="color:var(--purple);background:var(--purpleLt)">NDD ${esc(a.ndd)}</span></div>
+    ${aidPmvBloc(a)}</div>`;
+  const tabs=`<div style="display:flex;gap:8px;margin:14px 0 16px;flex-wrap:wrap">
+    ${[["accueil","Accueil"],["fiche","Ma situation"],["catalogue","Trouver un pro de l'aide aux aidants"],["devis","Prestations"],["remb","Historique & remb."]].map(([id,lab])=>{
+      const on=AID.tab===id;
+      const n=(id==="devis")?(STATE.devis||[]).filter(d=>d.assure_id===a.id && !["payé","refusé"].includes(d.statut)).length:0;
+      return `<button class="btn ${on?'teal':'ghost'}" data-act="a-tab" data-tab="${id}">${lab}${n>0?` <span class="chip" style="background:${on?'rgba(255,255,255,.25)':'var(--bad)'};color:#fff">${n}</span>`:""}</button>`;
+    }).join("")}</div>`;
+  let panel;
+  if(AID.tab==="catalogue") panel=aidCatalogue(a);
+  else if(AID.tab==="devis") panel=aidDevis(a);
+  else if(AID.tab==="remb") panel=aidRemb(a);
+  else if(AID.tab==="fiche") panel=aidFiche();
+  else panel=aidAccueil(a);
+  return `<div style="max-width:980px;margin:0 auto">${contactBanner(a)}${pmvCard}${tabs}${panel}${aidDossier(a)}</div>${contactPanel(a)}${contactLauncher(a)}`;
+}
+
+/* ── Accueil : la garantie prête, l'orientation d'un clic, l'avancement des démarches.
+   Orientation : chaque besoin (aidant + proche) porte des métiers-cibles, des mots-clés
+   et une famille ; on score chaque prestation du catalogue — métier > mot-clé > famille. ── */
+const A_NEED={
+  "Mobilité / transport":       {metiers:[], kw:["transport","tpmr","mobilit","déplacement","véhicul"], fam:"Aide matérielle"},
+  "Accompagnement / transport": {metiers:[], kw:["transport","tpmr","mobilit","déplacement","véhicul"], fam:"Aide matérielle"},
+  "Aide à domicile":            {metiers:["Aide à domicile","Accompagnant éducatif et social (AES)"], kw:["auxiliaire","ménag","à domicile","garde","aide humaine","autonomie","relayage"], fam:"Aide humaine"},
+  "Répit":                      {metiers:[], kw:["répit","séjour","vacances","relayage","baluchonnage","accueil temporaire","ressourcement"], fam:"Aide au parcours de vie"},
+  "Répit de l'aidant":          {metiers:[], kw:["répit","séjour","vacances","relayage","baluchonnage","accueil temporaire","ressourcement"], fam:"Aide au parcours de vie"},
+  "Soutien psychologique":      {metiers:["Psychologue"], kw:["psycholog","soutien psy","deuil","émotion","écoute","sophrolog"], fam:"Aide psycho-affective"},
+  "Information / formation":    {metiers:[], kw:["formation","gestes","postures","transfert","manutention"], fam:"Aide au parcours de vie"},
+  "Aide administrative":        {metiers:["Assistant de service social (ASS)","Conseiller(e) en économie sociale et familiale"], kw:["administrati","mdph","dossier","droits","apa","démarches"], fam:"Aide administrative"},
+  "Soutien administratif":      {metiers:["Assistant de service social (ASS)","Conseiller(e) en économie sociale et familiale"], kw:["administrati","mdph","dossier","droits","démarches"], fam:"Aide administrative"},
+  "Adaptation du logement":     {metiers:["Ergothérapeute"], kw:["ergo","aménage","logement","à domicile","matériel","installation","adaptation"], fam:"Aide matérielle"},
+  "Soins / surveillance":       {metiers:["Infirmier","Kiné"], kw:["soin","surveillance","pda","doses","médic","kiné"], fam:"Aide au parcours de soin"},
+  "Stimulation / lien social":  {metiers:["Accompagnant éducatif et social (AES)"], kw:["activité","loisir","lien","stimulation","sociabilis","adapté"], fam:"Aide psycho-affective"},
+};
+function aidRecoRows(a){
+  const rows=A_rows().filter(r=>r.prix!=null && r.prix>=5);
+  if(!rows.length) return [];
+  const order=[];
+  ((a.profil&&a.profil.besoins)||[]).forEach(b=>order.push(b));
+  (a.aides||[]).forEach(pf=>((pf.profil&&pf.profil.besoins)||[]).forEach(b=>order.push(b)));
+  const needs=[...new Set(order)].filter(b=>A_NEED[b]).map(b=>A_NEED[b]);
+  const norm=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+  const score=(r,spec)=>{
+    let s=0; const nom=norm(r.nom||""), desc=norm(r.desc||"");
+    if(spec.metiers.some(m=>r.metiers.some(rm=>norm(rm).includes(norm(m))))) s+=4;
+    for(const k of spec.kw){ const kk=norm(k); if(nom.includes(kk)) s+=3; else if(desc.includes(kk)) s+=1; }
+    if(spec.fam && r.familles.includes(spec.fam)) s+=1;
+    return s;
+  };
+  const pick=[], seenId=new Set(), seenPro=new Set();
+  for(const spec of needs){
+    if(pick.length>=3) break;
+    const cand=rows.filter(r=>!seenId.has(r.id)&&!seenPro.has(r.pro_id))
+      .map(r=>({r,sc:score(r,spec)})).filter(x=>x.sc>=2)
+      .sort((x,y)=> y.sc-x.sc || x.r.rank-y.r.rank || x.r.prix-y.r.prix);
+    if(cand.length){ const r=cand[0].r; pick.push({row:r,fam:(spec.fam||r.familles[0]||"")}); seenId.add(r.id); seenPro.add(r.pro_id); }
+  }
+  if(pick.length<3){
+    for(const r of rows.slice().sort((x,y)=>x.rank-y.rank||x.prix-y.prix)){
+      if(pick.length>=3) break;
+      if(!seenId.has(r.id)&&!seenPro.has(r.pro_id)){ pick.push({row:r,fam:(r.familles[0]||"")}); seenId.add(r.id); seenPro.add(r.pro_id); }
+    }
+  }
+  return pick.slice(0,3);
+}
+function aidRecoCard(r, fam, ok){
+  const l=A_LBL[r.rank]||A_LBL[2];
+  const open=AID.demandePid===r.id;
+  const cta = open
+    ? `<div style="margin-top:10px;border-top:1px solid var(--line);padding-top:10px">
+         <textarea class="in" id="a-dv-msg" rows="2" placeholder="Un mot pour le pro (votre besoin, vos disponibilités…) — facultatif" style="resize:vertical"></textarea>
+         <div class="row" style="margin-top:8px">
+           <button class="btn teal" data-act="a-demander-envoyer" data-pid="${esc(r.id)}" style="flex:1">Envoyer la demande</button>
+           <button class="btn ghost" data-act="a-demander-devis" data-pid="${esc(r.id)}">Annuler</button></div></div>`
+    : `<button class="btn teal" data-act="a-demander-devis" data-pid="${esc(r.id)}" ${ok?'':'disabled'} style="margin-top:10px;width:100%${ok?'':';background:var(--muted)'}">${ok?'Demander un devis':'🔒 Activez votre garantie'}</button>`;
+  return `<div style="background:#fff;border:1px solid ${r.rank===0?'var(--gold)':'var(--line)'};border-radius:14px;padding:14px">
+     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px">
+       <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">
+         <span class="chip" style="color:${l[1]};background:${l[2]}">${l[0]}</span>
+         ${fam?`<span class="chip" style="color:var(--teal);background:var(--tealLt)">${esc(fam)}</span>`:""}
+       </div>
+       <div style="text-align:right;white-space:nowrap"><div style="font-weight:800;font-size:15px">${eur(r.prix)}</div><div class="muted" style="font-size:10.5px">${esc(A_UNITE[r.unite]||r.unite)}</div></div>
+     </div>
+     <div style="font-weight:800;font-size:14px">${esc(r.pro)}</div>
+     ${r.nom?`<div style="font-weight:600;font-size:12.5px;margin-top:2px">${esc(r.nom)}</div>`:""}
+     ${r.desc?`<div class="muted" style="font-size:12px;line-height:1.45;margin-top:5px">${esc(r.desc)}</div>`:""}
+     ${cta}</div>`;
+}
+function aidAccueil(a){
+  const ok=!!a.pmv_pret;
+  const montant=Number((a.pmv&&a.pmv.disponible)||0);
+  const prenom=esc((a.prenom||a.nom_complet||"").split(" ")[0]||"");
+  const pfdNoms=(a.aides||[]).map(x=>x.prenom).filter(Boolean);
+  const aupres = pfdNoms.length ? ` auprès de ${esc(pfdNoms.join(", "))}` : "";
+  const hero = ok
+    ? `<div class="card" style="border:1px solid var(--teal);background:linear-gradient(180deg,var(--tealLt),#fff)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:20px">✅</span>
+          <div style="font-weight:800;font-size:16px;color:var(--teal)">Votre garantie est prête${prenom?`, ${prenom}`:""}</div></div>
+        <div style="font-size:13px;line-height:1.5;color:var(--ink)">Vous disposez de <b>${eur(montant)}</b> pour faciliter votre rôle d'aidant — répit, soutien, aménagements et accompagnement${aupres}. Choisissez un professionnel référencé : <b>pas d'avance de frais</b>, il est réglé directement depuis votre garantie.</div>
+        <div class="muted" style="font-size:11.5px;margin-top:9px;line-height:1.45">Prise en charge sans dossier à monter ni remboursement à attendre.</div>
+      </div>`
+    : `<div class="card" style="border:1px solid var(--gold);background:var(--goldLt)">
+        <div style="display:flex;align-items:flex-start;gap:11px">
+          <span style="font-size:20px">🔒</span>
+          <div><div style="font-weight:800;font-size:15px;color:var(--goldDk)">Activez votre garantie en 2 minutes</div>
+          <div class="muted" style="font-size:12.5px;line-height:1.45;margin-top:2px">Votre budget de <b>${eur(montant)}</b> pour vous soutenir dans votre rôle d'aidant est réservé. Renseignez votre RIB et le profil de votre proche pour le rendre utilisable — vous serez ensuite guidé(e) vers les bons professionnels.</div>
+          <button class="btn gold" data-act="a-dossier-open" style="margin-top:11px">Compléter mon dossier</button></div></div>
+      </div>`;
+  const reco=aidRecoRows(a);
+  const recoBlock = reco.length ? `<div style="margin-top:16px">
+    <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:10px">
+      <div style="font-weight:800;font-size:15px;color:var(--purple)">Recommandé pour votre situation</div>
+      <button class="btn ghost" data-act="a-tab" data-tab="catalogue" style="font-size:12px;padding:7px 11px">Voir tout le catalogue ›</button></div>
+    <div class="muted" style="font-size:11.5px;margin-bottom:11px;line-height:1.45">Sélection issue de votre profil et de celui de votre proche, parmi le catalogue de professionnels référencés.</div>
+    <div style="display:grid;gap:10px">${reco.map(x=>aidRecoCard(x.row,x.fam,ok)).join("")}</div>
+  </div>` : `<div class="card" style="margin-top:16px;text-align:center;padding:20px">
+    <div style="font-weight:700;font-size:13.5px;margin-bottom:4px">Le catalogue des professionnels arrive</div>
+    <div class="muted" style="font-size:12.5px">La connexion au référentiel aidance-pro n'est pas encore activée. Vous pourrez bientôt choisir un professionnel référencé directement ici.</div></div>`;
+  const ds=(STATE.devis||[]).filter(d=>d.assure_id===a.id);
+  const cnt=st=>ds.filter(d=>d.statut===st).length;
+  const enCours=cnt("engagé")+cnt("réalisée");
+  const actionable=ds.find(d=>d.statut==="devisé")||ds.find(d=>d.statut==="réalisée");
+  const tile=(v,lab,col)=>`<div class="stat" style="flex:1 1 120px"><b style="font-size:20px;color:${col}">${v}</b><span>${lab}</span></div>`;
+  const demarches = ds.length ? `<div class="card" style="margin-top:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px">
+      <div style="font-weight:800;font-size:15px;color:var(--purple)">Mes prestations</div>
+      <button class="btn ghost" data-act="a-tab" data-tab="devis" style="font-size:12px;padding:7px 11px">Détail ›</button></div>
+    <div class="pmv">${tile(cnt("devisé"),"À accepter","var(--goldDk)")}${tile(enCours,"En cours","var(--purple)")}${tile(cnt("payé"),"Payées","var(--good)")}</div>
+    ${actionable?`<div style="margin-top:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--goldLt);border-radius:11px;padding:11px 13px">
+        <span style="font-size:12.5px;line-height:1.4;flex:1 1 200px">${actionable.statut==="devisé"?"Un devis vous attend — acceptez-le pour engager votre garantie.":"Une prestation a été réalisée — confirmez le service fait pour finaliser le paiement du pro."}</span>
+        <button class="btn teal" data-act="a-tab" data-tab="devis">${actionable.statut==="devisé"?"Voir le devis":"Confirmer"}</button></div>`:""}
+  </div>` : `<div class="card" style="margin-top:16px;text-align:center;padding:22px">
+      <div style="font-weight:700;font-size:13.5px;margin-bottom:4px">Aucune démarche pour le moment</div>
+      <div class="muted" style="font-size:12.5px">Choisissez une aide ci-dessus : votre première demande de devis apparaîtra ici.</div></div>`;
+  const affiner = `<div style="margin-top:16px;display:flex;align-items:center;gap:11px;flex-wrap:wrap;border:1px dashed var(--purple);border-radius:13px;padding:13px 15px;background:#fff">
+    <span style="font-size:18px">✦</span>
+    <div style="flex:1 1 240px;font-size:12.5px;line-height:1.45"><b>Besoin d'une orientation plus fine ?</b> Décrivez votre situation en quelques mots et laissez l'assistant anticiper vos besoins.</div>
+    <button class="btn ghost" data-act="a-tab" data-tab="fiche" style="border-color:var(--purple);color:var(--purple)">Affiner mon orientation ›</button></div>`;
+  return `<div style="max-width:840px;margin:0 auto">${hero}${recoBlock}${demarches}${affiner}</div>`;
+}
+
+/* ── Fil d'avancement d'un devis (la « liquidation » rendue visible) ── */
+const DVL_STEPS=[["demande","Demandé"],["devisé","Devisé"],["engagé","Engagé"],["réalisée","Réalisé"],["payé","Payé"]];
+function devisTimeline(statut){
+  if(statut==="refusé") return `<div style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:var(--bad);margin:4px 0">● Devis refusé</div>`;
+  const i=DVL_STEPS.findIndex(s=>s[0]===statut);
+  return `<div style="display:flex;align-items:flex-start;gap:0;margin:8px 0 2px">`+DVL_STEPS.map((s,k)=>{
+    const done=k<i, cur=k===i, col=done?'var(--good)':cur?'var(--purple)':'var(--line)', txt=done?'var(--good)':cur?'var(--purple)':'var(--muted)';
+    const dot=`<div style="display:flex;flex-direction:column;align-items:center;gap:3px;min-width:50px">
+        <div style="width:15px;height:15px;border-radius:50%;background:${(done||cur)?col:'#fff'};border:2px solid ${col};display:flex;align-items:center;justify-content:center;color:#fff;font-size:9px;font-weight:800">${done?'✓':''}</div>
+        <span style="font-size:9.5px;font-weight:${cur?800:600};color:${txt};white-space:nowrap">${s[1]}</span></div>`;
+    const bar=k<DVL_STEPS.length-1?`<div style="flex:1;height:2px;background:${k<i?'var(--good)':'var(--line)'};margin-top:6px"></div>`:"";
+    return dot+bar;
+  }).join("")+`</div>`;
+}
+
+/* ── Dossier : discret quand complet, mis en avant s'il bloque la garantie ── */
+function aidDossier(a){
+  const profilBlock = aidProfil(a);
+  const aideBlock = aidAidesList(a);
+  const complete = a.pmv_pret && a.profil_complet;
+  if(!complete) return `<div style="margin-top:6px">${profilBlock}${aideBlock}</div>`;
+  const open=!!AID.dossierOpen;
+  const head=`<button class="btn ghost" data-act="a-dossier-toggle" style="display:flex;align-items:center;gap:11px;width:100%;text-align:left;padding:13px 15px;border:1px solid var(--line);background:#fff">
+      <span style="width:26px;height:26px;flex-shrink:0;border-radius:8px;background:#E5F2EB;color:var(--good);display:inline-flex;align-items:center;justify-content:center;font-weight:800">✓</span>
+      <span style="flex:1"><span style="font-weight:800;font-size:13.5px;color:var(--ink)">Mon dossier est complet</span>
+        <span class="muted" style="display:block;font-size:11.5px">RIB, profil et proche(s) renseignés — votre garantie est prête à l'emploi.</span></span>
+      <span class="muted" style="font-size:12px;font-weight:700">${open?"Masquer":"Voir / modifier"} ›</span></button>`;
+  return `<div style="margin-top:16px">${head}${open?`<div style="margin-top:12px">${profilBlock}${aideBlock}</div>`:""}</div>`;
+}
+
+/* ── Profil aidant : analyse situationnelle (réf. grille multidim. FPFR · EMS-APA CNSA · grille répit HAS) ── */
+const PF_MARITAL=["Célibataire","En couple","Marié(e) / Pacsé(e)","Divorcé(e) / Séparé(e)","Veuf(ve)"];
+const PF_FOYER=["Seul(e)","En couple sans enfant","Avec enfant(s) à charge","Famille monoparentale","Autre"];
+const PF_COHAB=["Oui, je vis avec mon proche","Non"];
+const PF_DISTANCE=["Même logement","Moins de 15 min","15 à 30 min","30 min à 1 h","Plus d'1 h"];
+const PF_ANCIENNETE=["Moins de 6 mois","6 mois à 2 ans","2 à 5 ans","Plus de 5 ans"];
+const PF_HEURES=["Moins de 4 h/sem","4 à 10 h/sem","10 à 20 h/sem","20 à 40 h/sem","Plus de 40 h/sem"];
+const PF_NUIT=["Non","Oui, ponctuellement","Oui, régulièrement"];
+const PF_TACHES=["Actes essentiels (toilette, repas)","Tâches domestiques","Démarches administratives","Soins / surveillance","Accompagnement / transport","Soutien moral"];
+const PF_STATUT_PRO=["Salarié(e)","Indépendant(e)","Fonctionnaire","Demandeur d'emploi","Retraité(e)","Au foyer","Étudiant(e)"];
+const PF_CONTRAT=["CDI","CDD","Intérim","Sans objet"];
+const PF_TEMPS=["Temps plein","Temps partiel"];
+const PF_POSTE=["Horaires de journée","Travail posté / décalé","Travail de nuit","Horaires variables"];
+const PF_FLEX=["Aucune flexibilité","Faible","Modérée","Forte"];
+const PF_AMENAGE=["Télétravail","Horaires individualisés","Temps partiel","Congé proche aidant","Don de jours / CET"];
+const PF_COAIDANTS=["Je suis le seul aidant","Oui, un autre aidant","Oui, plusieurs aidants"];
+const PF_ROLE=["Aidant principal","Aidant secondaire"];
+const PF_RELAIS=["Relais possible facilement","Relais possible parfois","Aucun relais"];
+const PF_AIDES_H=["Aide à domicile","Infirmier / SSIAD","Accueil de jour","Plateforme de répit"];
+const PF_AIDES_F=["AJPA (congé proche aidant)","AJPP (présence parentale)","Dédommagement aidant (via PCH)","Salariat via CESU","AVPF (retraite du proche aidant)","Droit au répit","Aide de l'employeur (CESU préfinancé, CSE, dons de jours)","Aide d'une action sociale (CCAS, département)","Aide d'une caisse de retraite","Crédit d'impôt (services à la personne)","Aucune"];
+const PF_SANTE=["Bonne","Moyenne","Altérée"];
+const PF_FATIGUE=["Faible","Modérée","Élevée"];
+const PF_DISPO=["Matin","Après-midi","Soir","Week-end"];
+const PF_BESOINS=["Répit","Soutien psychologique","Aide à domicile","Information / formation","Aide administrative","Mobilité / transport"];
+function pfVal(id){ const el=$("#"+id); return el?String(el.value||"").trim():""; }
+function pfGrp(grp){ try{ return Array.from(document.querySelectorAll('[data-grp="'+grp+'"]:checked')).map(e=>e.value); }catch(_){ return []; } }
+function pfSel(id,label,opts,val,flex){ return `<div class="f" style="flex:${flex||'1 1 180px'}"><label>${esc(label)}</label><select class="in" id="${id}"><option value="">—</option>${opts.map(o=>`<option ${o===val?'selected':''}>${esc(o)}</option>`).join("")}</select></div>`; }
+function pfInp(id,label,val,ph,flex){ return `<div class="f" style="flex:${flex||'1 1 180px'}"><label>${esc(label)}</label><input class="in" id="${id}" value="${esc(val||"")}" placeholder="${esc(ph||"")}"></div>`; }
+function pfChk(grp,opts,vals){ return `<div style="display:flex;flex-wrap:wrap;gap:0 4px">${opts.map(o=>`<label style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:500;margin:0 12px 7px 0;cursor:pointer"><input type="checkbox" data-grp="${grp}" value="${esc(o)}" ${(vals||[]).includes(o)?'checked':''}>${esc(o)}</label>`).join("")}</div>`; }
+function pfHead(t){ return `<div style="font-size:11.5px;font-weight:800;color:var(--purple);margin:16px 0 8px;letter-spacing:.4px">${esc(t.toUpperCase())}</div>`; }
+
+function aidProfilForm(a){
+  const p=a.profil||{};
+  return `<div>
+    ${pfHead("Coordonnées & RIB")}
+    <div class="row">
+      ${pfInp("pf-adresse","Adresse",p.adresse,"N° et rue","2 1 260px")}
+      ${pfInp("pf-cp","Code postal",p.cp,"69000","0 1 110px")}
+      ${pfInp("pf-ville","Ville",p.ville,"Lyon","1 1 160px")}
+    </div>
+    <div class="row" style="align-items:flex-end">
+      <div class="f" style="flex:2 1 260px"><label>IBAN (RIB) — requis pour accéder au PMV</label><input class="in" id="ai-iban" value="${esc(a.rib||"")}" placeholder="FR76 ………"></div>
+      ${pfInp("ai-tel","Téléphone",a.telephone,"06 …","1 1 150px")}
+    </div>
+    ${pfHead("Situation familiale")}
+    <div class="row">
+      ${pfSel("pf-marital","Statut familial",PF_MARITAL,p.marital)}
+      ${pfSel("pf-foyer","Composition du foyer",PF_FOYER,p.foyer)}
+      ${pfInp("pf-enfants","Enfants à charge",p.enfants,"0","0 1 130px")}
+    </div>
+    ${pfHead("Mon proche & l'aide apportée")}
+    <div class="row">
+      ${pfSel("pf-cohabite","Vivez-vous avec votre proche ?",PF_COHAB,p.cohabite)}
+      ${pfSel("pf-distance","Distance domicile-proche",PF_DISTANCE,p.distance)}
+      ${pfSel("pf-anciennete","Depuis combien de temps êtes-vous aidant ?",PF_ANCIENNETE,p.anciennete)}
+    </div>
+    <div class="row">
+      ${pfSel("pf-heures","Temps d'aide hebdomadaire",PF_HEURES,p.heures)}
+      ${pfSel("pf-nuit","Aide la nuit ?",PF_NUIT,p.nuit)}
+    </div>
+    <div class="f"><label>Nature de l'aide</label>${pfChk("pf-taches",PF_TACHES,p.taches)}</div>
+    ${pfHead("Situation professionnelle")}
+    <div class="row">
+      ${pfSel("pf-statutpro","Statut",PF_STATUT_PRO,p.statutpro)}
+      ${pfSel("pf-contrat","Type de contrat",PF_CONTRAT,p.contrat)}
+      ${pfSel("pf-temps","Temps de travail",PF_TEMPS,p.temps)}
+    </div>
+    <div class="row">
+      ${pfSel("pf-poste","Organisation des horaires",PF_POSTE,p.poste)}
+      ${pfSel("pf-flex","Flexibilité des horaires",PF_FLEX,p.flex)}
+    </div>
+    <div class="f"><label>Aménagements en place</label>${pfChk("pf-amenage",PF_AMENAGE,p.amenage)}</div>
+    ${pfHead("Entourage & co-aidants")}
+    <div class="row">
+      ${pfSel("pf-coaidants","Autres aidants ?",PF_COAIDANTS,p.coaidants)}
+      ${pfSel("pf-role","Votre rôle",PF_ROLE,p.role)}
+      ${pfSel("pf-relais","Possibilité de relais",PF_RELAIS,p.relais)}
+    </div>
+    ${pfHead("Aides déjà en place")}
+    <div class="f"><label>Aides humaines</label>${pfChk("pf-aidesh",PF_AIDES_H,p.aidesh)}</div>
+    <div class="f"><label>Aides financières</label>${pfChk("pf-aidesf",PF_AIDES_F,p.aidesf)}</div>
+    ${pfInp("pf-aidesf-autre","Autre aide financière (précisez)",p.aidesf_autre,"ex. fonds de solidarité, aide d'une mutuelle, CESU employeur…","1 1 100%")}
+    ${pfHead("Retentissement & besoins")}
+    <div class="row">
+      ${pfSel("pf-sante","Santé perçue",PF_SANTE,p.sante)}
+      ${pfSel("pf-fatigue","Fatigue ressentie",PF_FATIGUE,p.fatigue)}
+    </div>
+    <div class="f"><label>Disponibilités pour des prestations</label>${pfChk("pf-dispo",PF_DISPO,p.dispo)}</div>
+    <div class="f"><label>Besoins prioritaires</label>${pfChk("pf-besoins",PF_BESOINS,p.besoins)}</div>
+    <div class="muted" style="font-size:11px;margin:8px 0 12px;line-height:1.45">Ces informations alimentent l'analyse situationnelle et l'orientation personnalisée. Obligatoires : RIB (accès au PMV), coordonnées postales et situation familiale ; le reste affine la pertinence.</div>
+    <div class="row">
+      <button class="btn gold" data-act="a-profil-completer" data-id="${esc(a.id)}">${a.profil_complet?"Enregistrer les modifications":"Valider mon profil"}</button>
+      ${a.profil_complet?`<button class="btn ghost" data-act="a-profil-edit">Annuler</button>`:""}
+    </div>
+  </div>`;
+}
+
+function aidProfil(a){
+  const p=a.profil||{};
+  if(a.profil_complet){
+    const rib=a.rib||"", masked = rib.length>10 ? rib.slice(0,6)+"…"+rib.slice(-4) : rib;
+    const tags=[p.marital,p.statutpro,p.poste,(p.heures?("Aide "+p.heures):""),(p.coaidants&&p.coaidants!=="Je suis le seul aidant"?p.coaidants:"")]
+      .filter(Boolean).slice(0,5).map(x=>`<span class="chip" style="color:var(--purple);background:var(--purpleLt)">${esc(x)}</span>`).join(" ");
+    return `<div class="card" style="margin-bottom:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px;color:var(--good)">✓</span>
+          <div><div style="font-weight:800;font-size:14px">Profil complété</div>
+          <div class="muted" style="font-size:12px">RIB ${esc(masked)}${a.telephone?` · ${esc(a.telephone)}`:""}${(p.cp||p.ville)?` · ${esc(((p.cp||"")+" "+(p.ville||"")).trim())}`:""}</div></div></div>
+        <button class="btn ghost" data-act="a-profil-edit" style="font-size:12px">${AID.profilEdit?"Fermer":"Modifier / compléter"}</button></div>
+      ${tags?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">${tags}</div>`:""}
+      ${a.pmv_pret
+        ?`<div style="margin-top:10px;padding:10px 13px;border-radius:11px;background:var(--tealLt);color:var(--good);font-size:12px;line-height:1.4">✓ Votre PMV est utilisable.</div>`
+        :`<div style="margin-top:10px;padding:10px 13px;border-radius:11px;background:var(--goldLt);color:var(--goldDk);font-size:12px;line-height:1.4">⏳ ${esc(a.pmv_blocage||"")} Rendez-vous dans « Mes proches » ci-dessous pour activer votre PMV.</div>`}
+      ${AID.profilEdit?`<div style="margin-top:14px;border-top:1px solid var(--line);padding-top:14px">${aidProfilForm(a)}</div>`:""}</div>`;
+  }
+  return `<div class="card" style="margin-bottom:14px;border:1px solid var(--gold);background:var(--goldLt)">
+    <div style="display:flex;align-items:flex-start;gap:11px;margin-bottom:12px">
+      <span style="font-size:20px">🔒</span>
+      <div><div style="font-weight:800;font-size:14.5px;color:var(--goldDk)">Complétez votre profil pour accéder à votre PMV</div>
+      <div class="muted" style="font-size:12px;line-height:1.45">Votre PMV est crédité (${eur(a.pmv?a.pmv.disponible:0)}). Renseignez votre profil — au minimum votre RIB (sur lequel vos remboursements seront versés), vos coordonnées et votre situation. Plus il est complet, plus l'orientation proposée sera pertinente.</div></div></div>
+    ${aidProfilForm(a)}</div>`;
+}
+
+/* ── Analyse situationnelle du PFD (réf. grille AGGIR · référentiel d'évaluation multidim. des demandeurs d'APA, arrêté 5/12/2016) ── */
+const PD_LIEU=["Domicile, seul(e)","Domicile, avec l'aidant","Domicile, avec un tiers","Hébergement partiel en établissement"];
+const PD_LOGEMENT=["Maison","Appartement","Logement adapté","Résidence services / autonomie"];
+const PD_ADAPTE=["Oui","Non","En projet"];
+const PD_ENVIRON=["Urbain","Péri-urbain","Rural","Isolé"];
+const PD_NATURE=["Physique","Cognitive","Mixte (physique & cognitive)","Psychique","Sensorielle"];
+const PD_PATHO=["Maladie neurodégénérative (Alzheimer…)","Pathologie motrice / AVC","Polypathologie liée à l'âge","Handicap de naissance","Maladie chronique invalidante","Pathologie psychique","Autre"];
+const PD_MOBILITE=["Autonome","Aide technique (canne, déambulateur)","Fauteuil roulant","Alité(e) la majeure partie du temps"];
+const PD_COGNITIF=["Aucun","Troubles légers","Troubles importants"];
+const PD_AVQ=["Toilette / habillage","Alimentation","Déplacements","Élimination","Cohérence / orientation","Tâches domestiques","Gestion administrative / budget"];
+const PD_ISOLEMENT=["Faible","Modéré","Fort"];
+const PD_AIDES_H=["Aide à domicile","Infirmier / SSIAD","Accueil de jour","Kinésithérapeute","Portage de repas"];
+const PD_AIDES_F=["APA","PCH","AAH","AEEH","ASPA (minimum vieillesse)","MVA (majoration pour la vie autonome)","Aide sociale départementale / CCAS","Aide d'une caisse de retraite","Crédit d'impôt (services à la personne)","En cours de demande","Aucune"];
+const PD_AIDES_T=["Téléassistance","Lit médicalisé","Aménagement salle de bain","Monte-escalier"];
+const PD_RISQUES=["Chutes","Dénutrition","Isolement social","Sécurité du domicile","Épuisement de l'aidant","Errance / désorientation"];
+const PD_BESOINS=["Aide à domicile","Répit de l'aidant","Soins / surveillance","Adaptation du logement","Accompagnement / transport","Soutien administratif","Stimulation / lien social"];
+
+function pdForm(pfd){
+  const p=pfd.profil||{};
+  return `<div style="margin-top:12px;border-top:1px solid var(--line);padding-top:12px">
+    ${pfHead("Le proche & son cadre de vie")}
+    <div class="row">
+      ${pfInp("pd-naissance","Année de naissance / âge",p.naissance||pfd.naissance,"ex. 1948","0 1 160px")}
+      ${pfSel("pd-lieu","Lieu de vie",PD_LIEU,p.lieu,"2 1 250px")}
+    </div>
+    <div class="row">
+      ${pfSel("pd-logement","Type de logement",PD_LOGEMENT,p.logement)}
+      ${pfSel("pd-adapte","Logement adapté ?",PD_ADAPTE,p.adapte)}
+      ${pfSel("pd-environ","Environnement",PD_ENVIRON,p.environ)}
+    </div>
+    ${pfHead("Santé & autonomie")}
+    <div class="row">
+      ${pfSel("pd-nature","Nature de la dépendance",PD_NATURE,p.nature)}
+      ${pfSel("pd-patho","Origine principale",PD_PATHO,p.patho)}
+    </div>
+    <div class="row">
+      ${pfSel("pd-mobilite","Mobilité",PD_MOBILITE,p.mobilite)}
+      ${pfSel("pd-cognitif","Troubles cognitifs",PD_COGNITIF,p.cognitif)}
+    </div>
+    ${pfHead("Activités de la vie quotidienne (réf. AGGIR)")}
+    <div class="f"><label>Domaines nécessitant de l'aide</label>${pfChk("pd-avq",PD_AVQ,p.avq)}</div>
+    ${pfHead("Entourage & isolement")}
+    <div class="row">
+      ${pfSel("pd-isolement","Isolement social",PD_ISOLEMENT,p.isolement)}
+      ${pfInp("pd-entourage","Autres proches présents ?",p.entourage,"ex. un frère à proximité","2 1 250px")}
+    </div>
+    ${pfHead("Aides déjà en place pour le proche")}
+    <div class="f"><label>Aides humaines</label>${pfChk("pd-aidesh",PD_AIDES_H,p.aidesh)}</div>
+    <div class="f"><label>Aides financières</label>${pfChk("pd-aidesf",PD_AIDES_F,p.aidesf)}</div>
+    ${pfInp("pd-aidesf-autre","Autre aide financière (précisez)",p.aidesf_autre,"ex. aide sociale, fonds départemental…","1 1 100%")}
+    <div class="f"><label>Aides techniques</label>${pfChk("pd-aidest",PD_AIDES_T,p.aidest)}</div>
+    ${pfHead("Risques & besoins prioritaires")}
+    <div class="f"><label>Points de vigilance</label>${pfChk("pd-risques",PD_RISQUES,p.risques)}</div>
+    <div class="f"><label>Besoins prioritaires du proche</label>${pfChk("pd-besoins",PD_BESOINS,p.besoins)}</div>
+    <div class="muted" style="font-size:11px;margin:8px 0 12px;line-height:1.45">Analyse situationnelle du proche (réf. grille AGGIR & référentiel d'évaluation multidimensionnelle des demandeurs d'APA). Elle affine l'orientation des prestations.</div>
+    <div class="row">
+      <button class="btn teal" data-act="a-pfd-save" data-id="${esc(pfd.id)}">Enregistrer le profil du proche</button>
+      <button class="btn ghost" data-act="a-pfd-edit" data-id="${esc(pfd.id)}">Fermer</button>
+    </div>
+  </div>`;
+}
+
+function dvMsg(label,txt,color){ if(!txt) return ""; return `<div style="margin-top:8px;padding:9px 12px;border-left:3px solid ${color};border-radius:0 9px 9px 0;background:var(--paper);font-size:12.5px;line-height:1.45"><span class="muted" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px">${label}</span><div style="margin-top:2px">${esc(txt)}</div></div>`; }
+
+function aidAidesList(a){
+  const pfds=a.aides||[];
+  const cards=pfds.map(pfd=>{
+    const ref=pfd.principal, done=pfd.profil&&Object.keys(pfd.profil).length>0, open=AID.pfdEdit===pfd.id;
+    return `<div style="border:1px solid var(--line);border-radius:13px;padding:13px 15px;background:var(--paper)">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span style="font-weight:800;font-size:14px">${esc(pfd.prenom)}</span>
+        <span class="muted" style="font-size:12px">${esc(pfd.lien)}${pfd.ndd?` · NDD ${pfd.ndd}`:""}</span>
+        <span class="chip" style="margin-left:auto;color:${ref?'var(--purple)':'var(--muted)'};background:${ref?'var(--purpleLt)':'var(--line)'}">${ref?'Proche de référence · indemnité':'Proche complémentaire'}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:9px;flex-wrap:wrap">
+        <span class="chip" style="color:${done?'var(--good)':'var(--goldDk)'};background:${done?'#E5F2EB':'var(--goldLt)'}">${done?'✓ Profil renseigné':'Profil à compléter'}</span>
+        <button class="btn ${open?'ghost':'teal'}" data-act="a-pfd-edit" data-id="${esc(pfd.id)}" style="font-size:12px;padding:7px 12px">${open?'Fermer':(done?'Modifier le profil':'Compléter le profil')}</button>
+      </div>
+      ${open?pdForm(pfd):""}</div>`;
+  }).join("");
+  const addForm = AID.pfdAddOpen
+    ? `<div style="margin-top:11px;border:1px dashed var(--purple);border-radius:13px;padding:13px 15px;background:#fff">
+        <div style="font-weight:700;font-size:13px;margin-bottom:8px">Ajouter un Proche Familial Dépendant</div>
+        <div class="row" style="align-items:flex-end">
+          ${pfInp("pfd-new-prenom","Prénom","","ex. Paul","1 1 160px")}
+          <div class="f" style="flex:1 1 150px"><label>Lien de parenté</label><select class="in" id="pfd-new-lien">${A_LIENS.map(o=>`<option ${o==="Père"?'selected':''}>${esc(o)}</option>`).join("")}</select></div>
+          <button class="btn gold" data-act="a-pfd-add" style="flex:0 0 auto">Ajouter</button>
+          <button class="btn ghost" data-act="a-pfd-add-toggle" style="flex:0 0 auto">Annuler</button>
+        </div>
+        <div class="muted" style="font-size:11px;margin-top:6px">Ce proche ne modifie pas le montant de votre indemnité ; votre PMV reste mobilisable pour lui comme pour vos autres proches.</div>
+      </div>`
+    : `<button class="btn ghost" data-act="a-pfd-add-toggle" style="margin-top:11px;border-style:dashed;color:var(--purple)">+ Ajouter un Proche Familial Dépendant</button>`;
+  const empty = !pfds.length
+    ? `<div class="muted" style="font-size:12.5px;line-height:1.45;margin-bottom:8px">Votre proche de référence sera renseigné par votre gestionnaire à partir de la grille d'évaluation médicale. Vous pourrez ensuite compléter son profil.</div>` : "";
+  return `<div class="card" style="margin-bottom:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div style="font-weight:800;font-size:14px">Mon / mes Proche(s) Familial(aux) Dépendant(s) <span class="muted" style="font-weight:500;font-size:11.5px">· PFD</span></div>
+      <span class="chip" style="color:${a.pmv_pret?'var(--good)':'var(--goldDk)'};background:${a.pmv_pret?'#E5F2EB':'var(--goldLt)'}">${a.pmv_pret?'✓ PMV actif':'⏳ PMV à activer'}</span></div>
+    ${empty}
+    <div style="display:grid;gap:10px">${cards}</div>
+    <div class="muted" style="font-size:11px;margin-top:10px;line-height:1.45">C'est <b>vous</b>, l'aidant, qui êtes indemnisé. Le montant a été calculé à partir de votre proche de référence (le plus dépendant) ; votre PMV est mobilisable pour <b>l'ensemble</b> des proches que vous aidez.</div>
+    ${addForm}</div>`;
+}
+
+function aidDevis(a){
+  const ds=(STATE.devis||[]).filter(d=>d.assure_id===a.id);
+  if(!ds.length) return `<div class="card" style="text-align:center;padding:28px;color:var(--muted);font-size:13px;max-width:840px;margin:0 auto">Aucune prestation pour le moment. Allez dans « Trouver un pro de l'aide aux aidants » pour demander un devis.</div>`;
+  const ST={
+    demande:["Demandé","En attente du devis du professionnel","var(--gold)"],
+    "devisé":["À accepter","Devis reçu — à accepter","var(--goldDk)"],
+    "engagé":["Engagé","Montant réservé sur votre PMV — réalisation en cours","var(--purple)"],
+    "réalisée":["À confirmer","Le pro a déclaré la prestation réalisée","var(--tealMid)"],
+    "payé":["Payé","Payé au pro depuis votre PMV — versement transmis au bordereau bancaire","var(--good)"],
+    "refusé":["Refusé","Devis refusé","var(--muted)"],
+  };
+  const rows=ds.map(d=>{
+    const p=((STATE.prestations)||[]).find(x=>x.id===d.prestation_id)||{};
+    const st=ST[d.statut]||["?","","var(--muted)"];
+    let actions="";
+    if(d.statut==="devisé")
+      actions=`<button class="btn teal" data-act="a-devis-accepter" data-id="${esc(d.id)}">Accepter (${eur(d.total)})</button> <button class="btn ghost" data-act="a-devis-refuser" data-id="${esc(d.id)}">Refuser</button>`;
+    else if(d.statut==="réalisée")
+      actions=`<button class="btn teal" data-act="a-devis-servicefait" data-id="${esc(d.id)}">Confirmer le service fait</button>`;
+    return `<div style="border:1px solid var(--line);border-radius:13px;padding:14px;background:var(--card)">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:6px">
+        <div><div style="font-weight:800;font-size:13.5px">${esc(p.nom||d.prestation_id)}</div>
+          <div class="muted" style="font-size:12px">${esc(A_proNom(d.pro_id))}${d.total?` · ${eur(d.total)}`:""}${d.quantite&&p.prix?` (${d.quantite} × ${eur(p.prix)})`:""}</div></div>
+        <span class="chip" style="color:${st[2]};background:${st[2]}18">${st[0]}</span></div>
+      <div class="muted" style="font-size:12px">${st[1]}</div>
+      ${devisTimeline(d.statut)}
+      ${dvMsg("Votre message",d.message,"var(--teal)")}
+      ${dvMsg("Mot du pro",d.message_pro,"var(--purple)")}
+      ${actions?`<div class="row" style="margin-top:10px">${actions}</div>`:""}</div>`;
+  }).join("");
+  return `<div style="display:grid;gap:10px;max-width:840px;margin:0 auto">${rows}</div>`;
+}
+
+function _pj(arr){ return (arr||[]).filter(Boolean).join(", "); }
+function profilAidantLines(ap){
+  ap=ap||{}; const L=[];
+  let fam=_pj([ap.marital,ap.foyer]); if(ap.enfants&&ap.enfants!=="0") fam+=(fam?", ":"")+ap.enfants+" enfant(s) à charge";
+  if(fam) L.push(["Situation familiale",fam]);
+  const pro=_pj([ap.statutpro,ap.contrat,ap.temps]); if(pro) L.push(["Situation professionnelle",pro]);
+  const org=_pj([ap.poste, ap.flex&&("flexibilité "+ap.flex.toLowerCase())]); if(org) L.push(["Organisation du travail",org]);
+  if((ap.amenage||[]).length) L.push(["Aménagements",_pj(ap.amenage)]);
+  const lien=_pj([ap.cohabite, ap.distance&&("à "+ap.distance.toLowerCase()), ap.anciennete&&("aidant depuis "+ap.anciennete.toLowerCase())]); if(lien) L.push(["Lien avec le proche",lien]);
+  const charge=_pj([ap.heures, (ap.nuit&&ap.nuit!=="Non")&&("aide de nuit : "+ap.nuit.toLowerCase())]); if(charge) L.push(["Charge d'aide",charge]);
+  if((ap.taches||[]).length) L.push(["Tâches assumées",_pj(ap.taches)]);
+  const ent=_pj([ap.coaidants,ap.role,ap.relais]); if(ent) L.push(["Entourage / relais",ent]);
+  const aides=_pj([...(ap.aidesh||[]),...(ap.aidesf||[]),ap.aidesf_autre]); if(aides) L.push(["Aides déjà en place",aides]);
+  const ret=_pj([ap.sante&&("santé "+ap.sante.toLowerCase()), ap.fatigue&&("fatigue "+ap.fatigue.toLowerCase())]); if(ret) L.push(["Retentissement",ret]);
+  if((ap.dispo||[]).length) L.push(["Disponibilités",_pj(ap.dispo)]);
+  if((ap.besoins||[]).length) L.push(["Besoins exprimés",_pj(ap.besoins)]);
+  return L;
+}
+function profilPfdLines(pfds){
+  return (pfds||[]).map(pfd=>{
+    const p=pfd.profil||{}, L=[];
+    if(p.lieu) L.push(p.lieu);
+    const dep=_pj([p.nature,p.patho]); if(dep) L.push(dep);
+    if(p.mobilite) L.push("mobilité : "+p.mobilite.toLowerCase());
+    if(p.cognitif&&p.cognitif!=="Aucun") L.push("troubles cognitifs : "+p.cognitif.toLowerCase());
+    if((p.avq||[]).length) L.push("aide pour : "+_pj(p.avq));
+    if(p.isolement) L.push("isolement "+p.isolement.toLowerCase());
+    const ai=_pj([...(p.aidesh||[]),...(p.aidesf||[]),...(p.aidest||[]),p.aidesf_autre]); if(ai) L.push("aides : "+ai);
+    if((p.risques||[]).length) L.push("risques : "+_pj(p.risques));
+    if((p.besoins||[]).length) L.push("besoins : "+_pj(p.besoins));
+    return { head:`${pfd.prenom||"PFD"} — ${pfd.lien}${pfd.ndd?`, NDD ${pfd.ndd}`:""}${pfd.principal?" · proche de référence":""}`, lines:L };
+  });
+}
+function profilAidantTxt(ap){ const L=profilAidantLines(ap); return L.length?L.map(x=>`- ${x[0]} : ${x[1]}`).join("\n"):"(profil aidant non renseigné)"; }
+function profilPfdTxt(pfds){ const P=profilPfdLines(pfds); return P.length?P.map(p=>`- ${p.head} : ${p.lines.join(" ; ")||"profil non renseigné"}`).join("\n"):"(aucun PFD renseigné)"; }
+
+function aidFiche(){
+  const a=AID;
+  const A0=STATE.assure;
+  const aLines=profilAidantLines(A0.profil), pBlocks=profilPfdLines(A0.aides||[]);
+  const hasCtx = aLines.length>0 || pBlocks.some(b=>b.lines.length>0);
+  const canEval=a.consent && (hasCtx || a.recit.trim().length>4);
+  const socle=`<div class="card">
+    <h2 style="color:var(--purple)">Moi, aidant <span class="sub">— l'essentiel : ce que vous assumez, et ce qui pèse</span></h2>
+    <div style="font-size:12.5px;font-weight:700;margin-bottom:8px">Ce que je fais pour mon proche</div>
+    ${aChips(A_TACHES,a.taches,"a-tache","var(--teal)")}
+    <div style="font-size:12.5px;font-weight:700;margin:14px 0 8px">Ce qui est lourd en ce moment <span class="muted" style="font-weight:500">(facultatif)</span></div>
+    ${aChips(A_CHARGE,a.charge,"a-charge","var(--gold)")}
+  </div>`;
+  const synthese=`<div class="card">
+    <h2 style="color:var(--purple)">Ce que nous savons déjà <span class="sub">— l'analyse lit votre profil et celui de votre proche, pas besoin de tout ressaisir</span></h2>
+    <div style="font-size:12.5px;font-weight:700;margin-bottom:7px">Votre situation d'aidant</div>
+    ${aLines.length?`<div style="display:grid;gap:5px">${aLines.map(x=>`<div style="font-size:12.5px"><span class="muted">${esc(x[0])} :</span> <b style="font-weight:600">${esc(x[1])}</b></div>`).join("")}</div>`
+      :`<div class="muted" style="font-size:12px">Profil non renseigné — complétez « Mon profil » plus bas pour une analyse plus fine.</div>`}
+    <div style="font-size:12.5px;font-weight:700;margin:14px 0 7px">Votre / vos proche(s) (PFD)</div>
+    ${pBlocks.length?`<div style="display:grid;gap:9px">${pBlocks.map(b=>`<div style="border:1px solid var(--line);border-radius:10px;padding:9px 11px;background:var(--paper)">
+        <div style="font-weight:700;font-size:12.5px;margin-bottom:3px">${esc(b.head)}</div>
+        <div class="muted" style="font-size:12px;line-height:1.45">${b.lines.length?esc(b.lines.join(" · ")):"profil à compléter dans « Mon / mes PFD » plus bas"}</div></div>`).join("")}</div>`
+      :`<div class="muted" style="font-size:12px">Aucun PFD renseigné.</div>`}
+  </div>`;
+  const recit=`<div class="card">
+    <h2 style="color:var(--purple)">Dans vos mots <span class="sub">— racontez votre situation comme vous le souhaitez, c'est souvent le plus utile</span></h2>
+    <textarea class="in" id="a-recit" rows="4" placeholder="Qu'est-ce qui est le plus lourd en ce moment ? Qu'aimeriez-vous déléguer ? Qu'est-ce qui vous inquiète pour la suite ?" style="resize:vertical;line-height:1.5">${esc(a.recit)}</textarea>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:10px;padding:10px 12px;border-radius:10px;background:var(--purpleLt)">
+      <span style="font-size:12px;color:var(--purple);line-height:1.45">Ces informations servent uniquement à vous proposer des solutions adaptées. Vous gardez la main : rien n'est retenu sans votre validation.</span></div>
+  </div>`;
+  const consent=`<button class="btn ghost" data-act="a-consent" style="display:flex;align-items:center;gap:11px;width:100%;text-align:left;padding:12px 14px;margin-bottom:12px;border:1px solid ${a.consent?'var(--teal)':'var(--line)'};background:${a.consent?'var(--tealLt)':'#fff'}">
+    <span style="width:22px;height:22px;flex-shrink:0;border-radius:6px;border:1.5px solid ${a.consent?'var(--teal)':'var(--line)'};background:${a.consent?'var(--teal)':'#fff'};display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:800">${a.consent?'✓':''}</span>
+    <span style="font-size:13px;line-height:1.45;color:var(--ink);font-weight:500">J'autorise l'analyse de ces informations (pouvant relever de la santé) pour me proposer des solutions adaptées.</span></button>`;
+  const evalBtn=`<button class="btn" data-act="a-evaluer" ${(!canEval||a.loading)?'disabled':''} style="width:100%;padding:14px 16px;font-size:15px;background:${canEval&&!a.loading?'var(--purple)':'var(--muted)'}">${a.loading?"Analyse de votre situation…":"✦ Évaluer mes besoins"}</button>
+    ${!a.consent?`<div class="muted" style="font-size:11.5px;text-align:center;margin-top:8px">Cochez l'autorisation ci-dessus pour lancer l'évaluation.</div>`:""}`;
+  let note="";
+  if(a.aiNote) note=`<div style="display:flex;align-items:center;gap:7px;margin-top:14px;font-size:12px;font-weight:600;color:${a.aiNote.kind==='warn'?'var(--goldDk)':'var(--good)'}">${a.aiNote.kind==='warn'?'ⓘ':'✦'} ${esc(a.aiNote.txt)}</div>`;
+  let besoins="";
+  if(a.besoins.length){
+    besoins=`<div class="card" style="margin-top:16px">
+      <h2 style="color:var(--purple)">Besoins anticipés <span class="sub">— des suggestions, à vous de retenir celles qui vous parlent</span></h2>
+      <div style="display:grid;gap:9px">${a.besoins.map((b,i)=>`<div style="padding:13px 14px;border-radius:12px;border:1px solid var(--line);background:#fff">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px">
+          <div style="display:flex;align-items:center;gap:9px">
+            <span style="font-size:10.5px;font-weight:800;color:var(--teal);background:var(--tealLt);padding:3px 8px;border-radius:7px;white-space:nowrap">${b.horizon} mois</span>
+            <span style="font-weight:800;font-size:14px">${esc(A_TAXO_LABEL(b.categorie))}</span></div>
+          <span style="display:flex;gap:8px">
+            <button class="btn teal" data-act="a-besoin-retenir" data-i="${i}" style="padding:8px 13px;font-size:12.5px">✓ Retenir</button>
+            <button class="btn ghost" data-act="a-besoin-ecarter" data-i="${i}" style="padding:8px 13px;font-size:12.5px">✕ Pas pour moi</button></span>
+        </div>
+        <div class="muted" style="font-size:12.5px;line-height:1.45">${esc(b.justification||"")}</div></div>`).join("")||`<div class="muted" style="font-size:12px">Toutes les suggestions ont été traitées.</div>`}</div>
+    </div>`;
+  }
+  let relances="";
+  if(a.relances.length){
+    relances=`<div class="card" style="margin-top:16px">
+      <h2 style="color:var(--purple)">Pour affiner <span class="sub">— quelques précisions utiles, repérées dans ce que vous avez écrit</span></h2>
+      <div style="display:grid;gap:10px">${a.relances.map((r,i)=>`<div style="padding:12px 14px;border-radius:12px;background:var(--goldLt)">
+        <div style="display:flex;align-items:center;gap:9px"><span style="color:var(--goldDk);flex-shrink:0">💡</span><span style="font-size:13px;line-height:1.45">${esc(r.texte)}</span></div>
+        <input class="in" data-relance-i="${i}" value="${esc(a.reponses[i]||'')}" placeholder="Votre réponse (facultatif)…" style="margin-top:10px;background:#fff"></div>`).join("")}</div>
+      <button class="btn ghost" data-act="a-evaluer" ${a.loading?'disabled':''} style="width:100%;margin-top:12px;border-color:var(--purple);color:var(--purple)">✦ Ré-évaluer avec ces précisions</button>
+    </div>`;
+  }
+  let parcours="";
+  if(a.parcours.length){
+    parcours=`<div class="card" style="margin-top:16px">
+      <h2 style="color:var(--purple)">Mon parcours <span class="sub">— les besoins que vous avez retenus. Vous pourrez choisir un professionnel pour chacun</span></h2>
+      <div style="display:grid;gap:8px">${a.parcours.map(b=>`<button class="btn" data-act="a-parcours-pro" data-cat="${esc(b.categorie)}" style="display:flex;align-items:center;justify-content:space-between;padding:11px 13px;border-radius:11px;border:1px solid var(--teal);background:var(--tealLt);color:var(--ink);font-weight:500">
+        <span style="display:flex;align-items:center;gap:9px"><span style="color:var(--teal)">✓</span><span style="font-weight:700;font-size:13.5px">${esc(A_TAXO_LABEL(b.categorie))}</span><span class="muted" style="font-size:11px">· ${b.horizon} mois</span></span>
+        <span style="color:var(--teal);font-weight:700;font-size:12.5px">Choisir un pro ›</span></button>`).join("")}</div>
+    </div>`;
+  }
+  const canAnalyse = aLines.length>0 && pBlocks.some(b=>b.lines.length>0);
+  const aTxt = A0.analyse||"";
+  let analyseInner;
+  if(!canAnalyse){
+    analyseInner = `<div class="muted" style="font-size:12px;line-height:1.45">Complétez « Mon profil » et le profil de votre proche (plus bas sur cette page) pour générer une analyse situationnelle.</div>`;
+  } else if(a.analyseEdit){
+    analyseInner = `<textarea class="in" id="a-analyse-txt" rows="14" style="resize:vertical;line-height:1.55;font-size:12.5px">${esc(a.analyseTexte||aTxt)}</textarea>
+      <div class="row" style="margin-top:10px">
+        <button class="btn teal" data-act="a-analyse-valider">✓ Valider cette analyse</button>
+        <button class="btn ghost" data-act="a-analyse-generer" ${a.analyseLoading?'disabled':''}>↻ Régénérer</button>
+        ${aTxt?`<button class="btn ghost" data-act="a-analyse-annuler">Annuler</button>`:""}
+      </div>
+      <div class="muted" style="font-size:11px;margin-top:8px;line-height:1.4">Vous pouvez modifier ce texte avant de le valider. Une fois validée, cette analyse guide le choix des solutions.</div>`;
+  } else if(aTxt){
+    analyseInner = `<div style="white-space:pre-wrap;font-size:12.5px;line-height:1.55;background:var(--paper);border:1px solid var(--line);border-radius:11px;padding:13px 15px">${esc(aTxt)}</div>
+      <div class="row" style="margin-top:10px"><button class="btn ghost" data-act="a-analyse-modifier">Modifier l'analyse</button></div>
+      <div style="display:flex;align-items:center;gap:7px;margin-top:8px;font-size:12px;color:var(--good);font-weight:600">✓ Analyse validée — elle est prise en compte dans l'évaluation des besoins.</div>`;
+  } else {
+    analyseInner = `<div class="muted" style="font-size:12px;line-height:1.45;margin-bottom:10px">À partir de votre profil et de celui de votre proche, l'assistant rédige une synthèse (~40 lignes) que vous pourrez valider ou ajuster.</div>
+      <button class="btn" data-act="a-analyse-generer" ${a.analyseLoading?'disabled':''} style="background:${a.analyseLoading?'var(--muted)':'var(--purple)'}">${a.analyseLoading?"Rédaction en cours…":"✦ Générer l'analyse situationnelle"}</button>`;
+  }
+  const analyseCard = `<div class="card">
+    <h2 style="color:var(--purple)">Analyse situationnelle <span class="sub">— une synthèse de votre situation, à valider, qui oriente le choix des solutions</span></h2>
+    ${analyseInner}</div>`;
+  return `<div style="max-width:760px;margin:0 auto">
+    <div style="display:flex;align-items:center;gap:11px;margin-bottom:18px"><div><div style="font-weight:800;font-size:17px;color:var(--purple)">Ma situation</div><div class="muted" style="font-size:11.5px">Pour mieux anticiper vos besoins et vous guider</div></div></div>
+    ${synthese}${socle}${recit}${analyseCard}${consent}${evalBtn}${note}${besoins}${relances}${parcours}</div>`;
+}
+
+async function aidGenererAnalyse(){
+  const A0=STATE.assure;
+  AID.analyseLoading=true; render();
+  const apTxt=profilAidantTxt(A0.profil), pdTxt=profilPfdTxt(A0.aides||[]);
+  const tachesTxt=AID.taches.map(t=>{const x=A_TACHES.find(y=>y[0]===t);return x?x[1]:t;}).join(", ")||"non précisé";
+  const chargeTxt=AID.charge.map(c=>{const x=A_CHARGE.find(y=>y[0]===c);return x?x[1]:c;}).join(", ")||"non précisé";
+  const prompt=`Données pour la synthèse situationnelle.
+
+PROFIL DE L'AIDANT :
+${apTxt}
+
+PROFIL DU / DES PROCHE(S) FAMILIAL(AUX) DÉPENDANT(S) :
+${pdTxt}
+
+ÉLÉMENTS DÉCLARÉS — tâches assumées : ${tachesTxt} ; charge ressentie : ${chargeTxt}.
+RÉCIT LIBRE DE L'AIDANT : "${AID.recit||"(non renseigné)"}"
+
+Rédige la synthèse situationnelle demandée (40 lignes maximum).`;
+  try{
+    const res=await api("POST","/api/analyse/generer",{prompt});
+    if(!res || res.texte==null) throw new Error("indispo");
+    AID.analyseTexte=String(res.texte); AID.analyseEdit=true;
+    toast("Analyse générée — relisez, ajustez si besoin, puis validez");
+  }catch(e){
+    const L=profilAidantLines(A0.profil), P=profilPfdLines(A0.aides||[]);
+    const parts=["SITUATION DE L'AIDANT"];
+    L.forEach(x=>parts.push("• "+x[0]+" : "+x[1]));
+    parts.push(""); parts.push("SITUATION DU / DES PROCHE(S)");
+    P.forEach(b=>{parts.push("• "+b.head); (b.lines||[]).forEach(l=>parts.push("   - "+l));});
+    if(AID.recit&&AID.recit.trim()){ parts.push(""); parts.push("DANS SES MOTS"); parts.push(AID.recit.trim()); }
+    parts.push(""); parts.push("(Synthèse locale — l'assistant IA n'était pas disponible. Vous pouvez la compléter avant validation.)");
+    AID.analyseTexte=parts.join("\n"); AID.analyseEdit=true;
+    toast("Assistant indisponible — synthèse locale proposée",true);
+  }
+  AID.analyseLoading=false; render();
+}
+
+/* Repli heuristique de l'évaluation : déduit les besoins des déclarations
+   (profils + chips), contraint à la même taxonomie fermée (RG-60, RG-63). */
+const REPLI_BESOINS={"Aide administrative":"assistance_administrative","Soutien administratif":"assistance_administrative",
+  "Adaptation du logement":"logement_adaptation","Aide à domicile":"aide_domicile","Soins / surveillance":"aide_domicile",
+  "Soutien psychologique":"soutien_psychologique","Stimulation / lien social":"soutien_psychologique",
+  "Répit":"repit","Répit de l'aidant":"repit","Mobilité / transport":"mobilite_transport",
+  "Accompagnement / transport":"mobilite_transport","Information / formation":"formation_aidant"};
+const REPLI_CHIPS={administratif:"assistance_administrative",transport:"mobilite_transport",rdv_medicaux:"mobilite_transport",
+  actes_quotidien:"aide_domicile",soutien_moral:"soutien_psychologique",coordination:"assistance_administrative",
+  fatigue:"soutien_psychologique",sommeil:"repit",isolement:"soutien_psychologique",repit:"repit",pro:"formation_aidant"};
+function aidEvaluerRepli(A0){
+  const ids=[];
+  const push=id=>{ if(id && A_TAXO_IDS.includes(id) && !ids.includes(id)) ids.push(id); };
+  ((A0.profil&&A0.profil.besoins)||[]).forEach(b=>push(REPLI_BESOINS[b]));
+  (A0.aides||[]).forEach(pf=>((pf.profil&&pf.profil.besoins)||[]).forEach(b=>push(REPLI_BESOINS[b])));
+  AID.charge.forEach(c=>push(REPLI_CHIPS[c]));
+  AID.taches.forEach(t=>push(REPLI_CHIPS[t]));
+  if(!ids.length) push("soutien_psychologique");
+  const H=[3,6,9,12];
+  return ids.slice(0,5).map((id,i)=>({categorie:id,horizon:H[Math.min(i,3)],
+    justification:"Besoin signalé dans votre situation (profils et éléments déclarés)."}));
+}
+
+async function aidEvaluer(){
+  AID.loading=true; AID.aiNote=null; AID.besoins=[]; AID.relances=[]; render();
+  const tachesTxt=AID.taches.map(t=>{const x=A_TACHES.find(y=>y[0]===t);return x?x[1]:t;}).join(", ")||"non précisé";
+  const chargeTxt=AID.charge.map(c=>{const x=A_CHARGE.find(y=>y[0]===c);return x?x[1]:c;}).join(", ")||"non précisé";
+  const A0=STATE.assure;
+  const apTxt=profilAidantTxt(A0.profil), pdTxt=profilPfdTxt(A0.aides||[]);
+  const analyseTxt = A0.analyse ? ("\n\nSYNTHÈSE SITUATIONNELLE VALIDÉE PAR L'AIDANT (à exploiter en priorité) :\n"+A0.analyse) : "";
+  const reponsesTxt=Object.values(AID.reponses).filter(Boolean).map(r=>`• ${r}`).join("\n");
+  const taxoTxt=A_TAXO.map(t=>`${t[0]} (${t[1]})`).join(", ");
+  const prompt=`Tu es le moteur d'anticipation des besoins de l'application "Mon Parcours Aidant".${analyseTxt}
+
+PROFIL SITUATIONNEL DE L'AIDANT (analyse à exploiter en priorité) :
+${apTxt}
+
+PROFIL SITUATIONNEL DU / DES PROCHE(S) FAMILIAL(AUX) DÉPENDANT(S) :
+${pdTxt}
+
+ÉLÉMENTS DÉCLARÉS EN COMPLÉMENT — tâches assumées : ${tachesTxt} ; charge ressentie : ${chargeTxt}.
+RÉCIT LIBRE DE L'AIDANT : "${AID.recit||"(non renseigné)"}"
+${reponsesTxt?"PRÉCISIONS COMPLÉMENTAIRES :\n"+reponsesTxt:""}
+
+1) À partir de ces profils, déduis les besoins d'accompagnement les plus pertinents pour soulager l'aidant et soutenir le proche, en tenant compte des contraintes (travail posté, faible flexibilité, absence de relais, isolement, fatigue, troubles cognitifs, risques…).
+CONTRAINTE ABSOLUE : chaque besoin doit utiliser un identifiant EXACT parmi : ${taxoTxt}. N'invente aucune catégorie.
+2) Propose des "relances" douces : une information utile manquante à compléter ou une question ciblée, en t'appuyant sur les profils et le récit.
+
+Réponds UNIQUEMENT en JSON, sans texte autour :
+{"besoins":[{"categorie":"<id>","horizon":<3|6|9|12>,"justification":"<phrase courte>"}],
+ "relances":[{"type":"champ|question","texte":"<phrase courte>"}]}
+Maximum 5 besoins (du plus urgent au moins urgent) et 3 relances.`;
+  try{
+    const res=await api("POST","/api/anticiper2",{prompt});
+    if(!res || res.text==null) throw new Error("indispo");
+    const parsed=JSON.parse(String(res.text).replace(/```json|```/g,"").trim());
+    const bs=(parsed.besoins||[]).filter(b=>A_TAXO_IDS.includes(b.categorie)).slice(0,5);
+    if(!bs.length) throw new Error("empty");
+    AID.besoins=bs; AID.relances=(parsed.relances||[]).slice(0,3);
+    AID.aiNote={kind:"ok",txt:"Besoins générés par l'assistant à partir de votre situation, contraints à la taxonomie aidance-pro."};
+  }catch(e){
+    AID.besoins=aidEvaluerRepli(A0);
+    AID.relances=[{type:"question",texte:"Vous arrive-t-il d'avoir des nuits difficiles ? Cela ouvrirait des solutions de répit."}];
+    AID.aiNote={kind:"warn",txt:"Assistant IA indisponible — orientation déduite de vos déclarations (repli heuristique, même taxonomie)."};
+  }finally{ AID.loading=false; render(); }
+}
+
+/* ── PMV : chiffres réels du moteur. Invariants (RG-43) :
+   crédit cumulé = disponible + engagé + payé ; solde = disponible + engagé. ── */
+function pmvChiffres(a){
+  const p=(a&&a.pmv)||{};
+  const dispo=Number(p.disponible||0), engage=Number(p.engage||0), paye=Number(p.paye||0);
+  return { creditCumule: dispo+engage+paye, payeCumule: paye,
+           solde: dispo+engage, engage, disponible: dispo };
+}
+function aidPmvBloc(a){
+  const c=pmvChiffres(a);
+  const t=(label,val,cls)=>`<div class="pmt ${cls||''}"><div class="l">${label}</div><div class="v">${eur(val)}</div></div>`;
+  const op=s=>`<div class="op">${s}</div>`;
+  const alims=((a.pmv&&a.pmv.mouvements)||[]).filter(m=>m.type==="alimentation");
+  const tip = alims.length ? `<span class="ptip-box"><div style="font-weight:800;font-size:12.5px;margin-bottom:6px">Crédits du PMV</div>${
+      alims.map(m=>`<div style="display:flex;justify-content:space-between;gap:16px;padding:3px 0"><span>${esc(m.ref)}<span style="color:var(--muted)"> · ${esc(m.date)}</span></span><b style="color:var(--good)">+ ${eur(m.montant)}</b></div>`).join("")
+    }</span>` : "";
+  const creditTile = `<div class="pmt"><div class="l">${tip?`<span class="ptip">Crédit cumulé <span style="opacity:.55">ⓘ</span>${tip}</span>`:"Crédit cumulé"}</div><div class="v">${eur(c.creditCumule)}</div></div>`;
+  return `<div class="pmvbloc">
+    <div class="eq">
+      ${creditTile}${op("−")}${t("Payé cumulé",c.payeCumule)}${op("=")}${t("Solde",c.solde,"solde")}
+    </div>
+    <div class="eq">
+      ${t("Solde",c.solde,"solde")}${op("−")}${t("Engagé",c.engage)}${op("=")}${t("Disponible",c.disponible,"dispo")}
+    </div>
+    <div class="muted" style="font-size:11px;line-height:1.4">Solde = crédit cumulé depuis le début − paiements cumulés. Disponible = solde − montant engagé (réservé, pas encore réglé).</div>
+  </div>`;
+}
+
+/* ── Journal réel du PMV (crédits + prestations) — remplace l'historique de démonstration ── */
+function histRow(label, montant, badge, date){
+  return `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--line)">
+    <div style="min-width:0"><div style="font-size:12.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis">${esc(label)}</div>
+      ${date?`<div class="muted" style="font-size:11px">${esc(date)}</div>`:""}</div>
+    <div style="text-align:right;white-space:nowrap"><div style="font-weight:700;font-size:12.5px">− ${eur(montant)}</div>
+      <span class="chip" style="font-size:10px;color:${badge[1]};background:${badge[1]}18">${esc(badge[0])}</span></div></div>`;
+}
+function aidJournal(a){
+  const alims=((a.pmv&&a.pmv.mouvements)||[]).filter(m=>m.type==="alimentation");
+  const credits = alims.length ? `<div class="card" style="margin-bottom:12px">
+    <div style="font-weight:800;font-size:14px;margin-bottom:2px">Crédits du PMV</div>
+    ${alims.map(m=>`<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:6px 0;border-top:1px solid var(--line)">
+      <span>${esc(m.ref)} <span class="muted">· ${esc(m.date)}</span></span><b style="color:var(--good)">+ ${eur(m.montant)}</b></div>`).join("")}</div>` : "";
+  const live=(STATE.devis||[]).filter(d=>d.assure_id===a.id && ["engagé","réalisée","payé"].includes(d.statut));
+  const liveRows=live.map(d=>{ const p=((STATE.prestations)||[]).find(x=>x.id===d.prestation_id)||{};
+    const enCours=(d.statut!=="payé");
+    return histRow(p.nom||d.prestation_id, d.total, enCours?["en cours","var(--purple)"]:["réglé","var(--good)"]);
+  }).join("");
+  const list= live.length ? `<div class="card" style="margin-bottom:12px">
+    <div style="font-weight:800;font-size:14px;margin-bottom:2px">Prestations</div>
+    ${liveRows}
+    <div class="muted" style="font-size:11px;margin-top:9px;line-height:1.4">« En cours » = montant engagé sur votre PMV, pas encore réglé au professionnel. « Réglé » = déjà payé.</div></div>` : "";
+  return credits+list;
+}
+function aidRemb(a){
+  const mine=(STATE.remboursements||[]).filter(r=>r.assure_id===a.id);
+  const ST={ soumise:["Soumise","En attente d'examen du gestionnaire","var(--gold)"], piece_demandee:["Pièce demandée","Le gestionnaire demande une pièce complémentaire","var(--goldDk)"],
+    "à_payer":["Validée","Validée — sera payée au prochain lot","var(--purple)"], "refusée":["Refusée","Demande refusée","var(--bad)"], "payé":["Payée","Remboursement versé","var(--good)"] };
+  const form = a.pmv_pret ? `<div class="card">
+    <div style="font-weight:800;font-size:14px;margin-bottom:10px">Demander le remboursement d'une dépense avancée</div>
+    <div class="row">
+      <div class="f" style="flex:2 1 220px"><label>Dépense</label><input class="in" id="ar-lib" placeholder="ex. Taxi RDV médical"></div>
+      <div class="f" style="flex:1 1 150px"><label>Motif</label><input class="in" id="ar-motif" placeholder="Transport, Répit…"></div>
+      <div class="f" style="flex:0 1 130px"><label>Montant (€)</label><input class="in" id="ar-montant" placeholder="0,00"></div>
+    </div>
+    <div class="row" style="align-items:flex-end;margin-top:6px">
+      <div class="f" style="flex:2 1 220px"><label>Justificatif (nom du fichier)</label><input class="in" id="ar-justif" placeholder="facture.pdf"></div>
+      <button class="btn teal" data-act="a-soumettre-remb" style="flex:0 0 auto">Envoyer au gestionnaire</button>
+    </div></div>`
+    : `<div class="card" style="border:1px solid var(--gold);background:var(--goldLt);color:var(--goldDk);font-size:12.5px">🔒 ${esc(a.pmv_blocage||"Complétez votre profil pour accéder au PMV.")}</div>`;
+  const list=mine.length?`<div style="display:grid;gap:10px;margin-top:14px">${mine.map(r=>{ const st=ST[r.statut]||["?","","var(--muted)"];
+    return `<div style="border:1px solid var(--line);border-radius:13px;padding:14px;background:var(--card)">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:4px">
+        <div><div style="font-weight:800;font-size:13.5px">${esc(r.libelle)}</div><div class="muted" style="font-size:12px">${esc(r.motif)} · ${eur(r.montant)}${(r.partiel&&r.montant_valide!=null)?` · validé ${eur(r.montant_valide)} (partiel)`:""}</div></div>
+        <span class="chip" style="color:${st[2]};background:${st[2]}18">${st[0]}</span></div>
+      <div class="muted" style="font-size:12px">${st[1]}</div></div>`;
+  }).join("")}</div>`:`<div class="muted" style="font-size:12.5px;margin-top:14px;text-align:center">Aucune demande de remboursement pour le moment.</div>`;
+  return `<div style="max-width:840px;margin:0 auto">${aidJournal(a)}${form}${list}</div>`;
+}
+
+function aidCatalogue(a){
+  const ok=!!a.pmv_pret;
+  const rows=A_rows();
+  if(!rows.length){
+    return `<div style="max-width:840px;margin:0 auto">
+      <div style="margin-bottom:16px"><div style="font-weight:800;font-size:17px;color:var(--purple)">Trouver un pro de l'aide aux aidants</div></div>
+      <div class="card" style="text-align:center;padding:28px">
+        <div style="font-weight:800;font-size:14.5px;margin-bottom:6px">Catalogue aidance-pro non connecté</div>
+        <div class="muted" style="font-size:12.5px;line-height:1.5;max-width:520px;margin:0 auto">Le référentiel des professionnels référencés est fourni par www.aidance-pro.com.<br>
+        La connexion s'active côté serveur (variable <code>AIDANCE_PRO_CATALOGUE_URL</code>) — voir le contrat d'interface dans <code>catalogue.py</code>.<br>
+        Source actuelle : <b>${esc(STATE.source||"non connecté")}</b>.</div></div></div>`;
+  }
+  const f=AID.cat;
+  const results=rows.filter(r=>{
+    if(f.famille && !r.familles.includes(f.famille)) return false;
+    if(f.metier && !r.metiers.includes(f.metier)) return false;
+    if(f.modalite && !r.mod.includes(f.modalite)) return false;
+    if(f.dept){ const okd=r.mod.includes("distanciel")||r.nat||r.deps.includes(f.dept); if(!okd) return false; }
+    return true;
+  }).sort((x,y)=> x.rank-y.rank || ((x.prix==null?1e9:x.prix)-(y.prix==null?1e9:y.prix)));
+  const active=f.famille||f.metier||f.modalite||f.dept;
+  const famBtns=A_famillesList().map(x=>{const on=f.famille===x;return `<button class="chip" data-act="a-fam" data-v="${esc(x)}" style="cursor:pointer;padding:8px 13px;font-weight:600;font-size:12.5px;border:1px solid ${on?'var(--purple)':'var(--line)'};background:${on?'var(--purple)':'#fff'};color:${on?'#fff':'var(--ink)'}">${esc(x)}</button>`;}).join("");
+  const modBtns=Object.entries(A_MOD).map(([k,lab])=>{const on=f.modalite===k;return `<button class="chip" data-act="a-mod" data-v="${k}" style="cursor:pointer;padding:9px 11px;font-weight:600;font-size:12px;border:1px solid ${on?'var(--teal)':'var(--line)'};background:${on?'var(--tealLt)':'#fff'};color:${on?'var(--teal)':'var(--muted)'}">${esc(lab)}</button>`;}).join("");
+  const proAgg={};
+  rows.forEach(r=>{ const p=proAgg[r.pro_id]||(proAgg[r.pro_id]={n:0,metiers:new Set(),familles:new Set(),mod:new Set(),nat:false,deps:new Set(),min:null,max:null});
+    p.n++; r.metiers.forEach(x=>p.metiers.add(x)); r.familles.forEach(x=>p.familles.add(x)); r.mod.forEach(x=>p.mod.add(x));
+    if(r.nat) p.nat=true; r.deps.forEach(x=>p.deps.add(x));
+    const px=Number(r.prix); if(px){ p.min=p.min==null?px:Math.min(p.min,px); p.max=p.max==null?px:Math.max(p.max,px); } });
+  const proTip=r=>{ const p=proAgg[r.pro_id]; if(!p) return "";
+    const li=(lab,val)=>val?`<div style="margin-top:4px"><span style="font-weight:700">${lab}</span> ${val}</div>`:"";
+    const proObj=((STATE.pros)||[]).find(x=>x.id===r.pro_id)||{};
+    const fams=[...p.familles]; const famTxt=esc(fams.slice(0,4).join(", "))+(fams.length>4?` +${fams.length-4}`:"");
+    const modTxt=[...p.mod].map(m=>esc(A_MOD[m]||m)).join(" · ");
+    const couv=p.nat?"France métropolitaine":`${p.deps.size} département${p.deps.size>1?"s":""}`;
+    const prix=p.min!=null?(p.min===p.max?eur(p.min):`${eur(p.min)} – ${eur(p.max)}`):"";
+    return `<span class="ptip-box"><div style="font-weight:800;font-size:13px">${esc(r.pro)}</div>
+      ${proObj.desc?`<div class="muted" style="margin-top:3px">${esc(proObj.desc)}</div>`:""}
+      ${li("Métier :",esc([...p.metiers].join(", ")))}${li("Domaines :",famTxt)}${li("Modalités :",modTxt)}
+      ${li("Couverture :",esc(couv))}${li("Au catalogue :",`${p.n} prestation${p.n>1?"s":""}${prix?` (${prix})`:""}`)}</span>`; };
+  const cards=results.map(r=>{
+    const l=A_LBL[r.rank]||A_LBL[2];
+    const open=AID.demandePid===r.id;
+    const btn = open
+      ? `<div style="margin-top:11px;border-top:1px solid var(--line);padding-top:10px">
+           <label style="font-size:11px;font-weight:700;color:var(--muted)">Un mot pour le pro <span style="font-weight:500">(facultatif : votre besoin, vos disponibilités…)</span></label>
+           <textarea class="in" id="a-dv-msg" rows="2" placeholder="ex. Besoin d'aide pour le dossier MDPH, plutôt le mercredi après-midi." style="resize:vertical;margin-top:4px"></textarea>
+           <div class="row" style="margin-top:8px">
+             <button class="btn teal" data-act="a-demander-envoyer" data-pid="${esc(r.id)}" style="flex:1;font-size:13px">Envoyer la demande</button>
+             <button class="btn ghost" data-act="a-demander-devis" data-pid="${esc(r.id)}" style="flex:0 0 auto">Annuler</button>
+           </div></div>`
+      : `<button class="btn teal" data-act="a-demander-devis" data-pid="${esc(r.id)}" ${ok?'':'disabled'} style="margin-top:11px;width:100%;font-size:13px${ok?'':';background:var(--muted)'}">${ok?'Demander un devis':'🔒 PMV à activer'}</button>`;
+    return `<div style="background:var(--card);border:1px solid ${r.rank===0?'var(--gold)':'var(--line)'};border-radius:14px;padding:15px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap">
+          <span class="chip" style="color:${l[1]};background:${l[2]}">${l[0]}</span>
+          <span class="ptip" style="font-weight:800;font-size:14.5px">${esc(r.pro)}${proTip(r)}</span></div>
+        <div style="text-align:right;white-space:nowrap"><div style="font-weight:800;font-size:15px">${eur(r.prix)}</div><div class="muted" style="font-size:10.5px">${esc(A_UNITE[r.unite]||r.unite)}</div></div>
+      </div>
+      ${r.nom?`<div style="font-weight:700;font-size:13.5px;margin-bottom:3px">${esc(r.nom)}</div>`:""}
+      ${r.desc?`<div class="muted" style="font-size:12px;line-height:1.45;margin-bottom:10px">${esc(r.desc)}</div>`:""}
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+        ${r.metiers.map(m=>`<span style="font-size:10.5px;font-weight:600;color:var(--teal);background:var(--tealLt);padding:2px 8px;border-radius:6px">${esc(m)}</span>`).join("")}
+        ${r.mod.map(m=>`<span style="font-size:10.5px;font-weight:600;color:var(--muted);border:1px solid var(--line);padding:2px 8px;border-radius:6px">${esc(A_MOD[m]||m)}</span>`).join("")}
+        <span class="muted" style="font-size:10.5px;font-weight:600">📍 ${r.nat?"France métropolitaine":`${r.deps.length} dépt.`}</span>
+      </div>${btn}</div>`;
+  }).join("")||`<div style="padding:30px;text-align:center;color:var(--muted);font-size:13px">Aucune prestation pour ces critères.</div>`;
+  const nbPros=new Set(rows.map(r=>r.pro_id)).size;
+  return `<div style="max-width:840px;margin:0 auto">
+    <div style="margin-bottom:16px"><div style="font-weight:800;font-size:17px;color:var(--purple)">Trouver un pro de l'aide aux aidants</div>
+      <div class="muted" style="font-size:11.5px">Catalogue aidance-pro · ${rows.length} prestations · ${nbPros} pros</div></div>
+    ${ok?"":`<div class="card" style="border:1px solid var(--gold);background:var(--goldLt);margin-bottom:14px;padding:12px 14px;font-size:12.5px;color:var(--goldDk)">🔒 ${esc(a.pmv_blocage||"Complétez votre profil pour accéder à votre PMV.")} Les blocs « Mon profil » et « Mes proches » sont plus bas sur cette page.</div>`}
+    <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:7px">BESOIN — FAMILLE D'AIDE <span style="font-weight:500">— proposition issue des éléments partagés dans « Ma situation »</span></div>
+    <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px">${famBtns}</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+      <button class="btn ghost" data-act="a-tab" data-tab="fiche" style="font-size:12px;padding:8px 12px">✎ Modifier ma situation</button>
+      <button class="btn ghost" data-act="a-cat-reset" style="font-size:12px;padding:8px 12px">Afficher toutes les prestations</button>
+    </div>
+    <div class="row" style="margin-bottom:6px;align-items:center">
+      <select class="in" id="a-metier" style="flex:0 1 220px"><option value="">Tous les métiers</option>${A_metiersList().map(m=>`<option ${m===f.metier?'selected':''}>${esc(m)}</option>`).join("")}</select>
+      <select class="in" id="a-dept" style="flex:0 1 220px"><option value="">Tous départements</option>${A_deptsList().map(d=>`<option value="${d.c}" ${d.c===f.dept?'selected':''}>${d.c} — ${esc(d.n)}</option>`).join("")}</select>
+      <div style="display:flex;gap:6px">${modBtns}</div>
+      ${active?`<button class="btn ghost" data-act="a-cat-reset" style="padding:9px 12px;font-size:12px">↺ Réinitialiser</button>`:""}
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin:14px 2px 10px">
+      <div style="font-size:13px;font-weight:700">${results.length} prestation${results.length>1?'s':''}</div>
+      <div class="muted" style="font-size:11.5px">Tri : premium → labellisé → autres</div></div>
+    <div style="display:grid;gap:10px">${cards}</div>
+  </div>`;
+}
+
+/* ═══════ §4 · Écouteurs d'événements ═══════ */
+document.addEventListener("change", e=>{
+  if(e.target.id==="a-metier"){ AID.cat.metier=e.target.value; render(); return; }
+  if(e.target.id==="a-dept"){ AID.cat.dept=e.target.value; render(); return; }
+});
+document.addEventListener("input", e=>{
+  if(e.target.id==="a-recit"){ AID.recit=e.target.value; return; }
+  if(e.target.dataset && e.target.dataset.relanceI!==undefined){ AID.reponses[e.target.dataset.relanceI]=e.target.value; return; }
+});
+document.addEventListener("click", async e=>{
+  const b = e.target.closest("[data-act]"); if(!b) return;
+  const act=b.dataset.act, id=b.dataset.id;
+  try{
+    /* — contact conseiller (enregistré côté serveur) — */
+    if(act==="cx-toggle"){ CX.open=!CX.open; render(); return; }
+    if(act==="cx-open"){ CX.open=true; CX.mode=b.dataset.mode||"rappel"; render(); return; }
+    if(act==="cx-tab"){ CX.mode=b.dataset.mode; render(); return; }
+    if(act==="cx-send-rappel"){
+      const tel=($("#cx-tel")&&$("#cx-tel").value.trim())||"";
+      if(!tel){ toast("Indiquez un numéro où vous rappeler",true); return; }
+      const cr=($("#cx-creneau")&&$("#cx-creneau").value)||"", mo=($("#cx-motif")&&$("#cx-motif").value.trim())||"";
+      STATE.assure=await api("POST","/api/assures/"+AIDANT_ID+"/contacts",{type:"rappel",telephone:tel,resume:[cr,mo].filter(Boolean).join(" · ")});
+      STATE.assures=[STATE.assure]; render(); toast("Demande transmise — un conseiller vous rappellera"); return; }
+    if(act==="cx-send-message"){
+      const su=($("#cx-sujet")&&$("#cx-sujet").value.trim())||"", ms=($("#cx-msg")&&$("#cx-msg").value.trim())||"", ca=($("#cx-canal")&&$("#cx-canal").value)||"";
+      if(!ms){ toast("Écrivez votre message",true); return; }
+      STATE.assure=await api("POST","/api/assures/"+AIDANT_ID+"/contacts",{type:"message",resume:[su,ms.slice(0,80),("réponse par "+ca.toLowerCase())].filter(Boolean).join(" · ")});
+      STATE.assures=[STATE.assure]; render(); toast("Message envoyé — un conseiller vous répondra"); return; }
+    if(act==="cx-send-rdv"){
+      const ty=($("#cx-rdv-type")&&$("#cx-rdv-type").value)||"", qd=($("#cx-rdv-quand")&&$("#cx-rdv-quand").value.trim())||"", te=($("#cx-rdv-tel")&&$("#cx-rdv-tel").value.trim())||"";
+      STATE.assure=await api("POST","/api/assures/"+AIDANT_ID+"/contacts",{type:"rdv",telephone:te,resume:[ty,qd].filter(Boolean).join(" · ")});
+      STATE.assures=[STATE.assure]; render(); toast("Demande de rendez-vous transmise"); return; }
+
+    /* — navigation & fiche — */
+    if(act==="a-tab"){ AID.tab=b.dataset.tab; render(); return; }
+    if(act==="a-dossier-toggle"){ AID.dossierOpen=!AID.dossierOpen; render(); return; }
+    if(act==="a-dossier-open"){ AID.dossierOpen=true; render(); return; }
+    if(act==="a-tache"){ const v=b.dataset.v; AID.taches=AID.taches.includes(v)?AID.taches.filter(x=>x!==v):[...AID.taches,v]; render(); return; }
+    if(act==="a-charge"){ const v=b.dataset.v; AID.charge=AID.charge.includes(v)?AID.charge.filter(x=>x!==v):[...AID.charge,v]; render(); return; }
+    if(act==="a-consent"){ AID.consent=!AID.consent; render(); return; }
+    if(act==="a-evaluer"){ await aidEvaluer(); return; }
+    if(act==="a-besoin-retenir"){ const i=Number(b.dataset.i); const bn=AID.besoins[i]; if(bn){ AID.parcours=[...AID.parcours,bn]; AID.besoins=AID.besoins.filter((_,k)=>k!==i); } render(); return; }
+    if(act==="a-besoin-ecarter"){ const i=Number(b.dataset.i); AID.besoins=AID.besoins.filter((_,k)=>k!==i); render(); return; }
+    if(act==="a-parcours-pro"){ const fam=A_TAXO_FAMILLE[b.dataset.cat]; AID.cat={famille:fam||"",metier:"",modalite:"",dept:""}; AID.tab="catalogue"; render(); return; }
+    if(act==="a-fam"){ const v=b.dataset.v; AID.cat.famille=AID.cat.famille===v?"":v; render(); return; }
+    if(act==="a-mod"){ const v=b.dataset.v; AID.cat.modalite=AID.cat.modalite===v?"":v; render(); return; }
+    if(act==="a-cat-reset"){ AID.cat={famille:"",metier:"",modalite:"",dept:""}; render(); return; }
+
+    /* — devis : la demande part au pro via aidance-pro ; RIEN n'est simulé ici — */
+    if(act==="a-demander-devis"){ AID.demandePid=(AID.demandePid===b.dataset.pid?null:b.dataset.pid); render(); return; }
+    if(act==="a-demander-envoyer"){
+      const msg=($("#a-dv-msg")&&$("#a-dv-msg").value.trim())||"";
+      let dv; try{ dv=await api("POST","/api/devis",{assure_id:AIDANT_ID,prestation_id:b.dataset.pid,message:msg}); }
+      catch(err){ toast(err.message||"Erreur",true); return; }
+      AID.demandePid=null; AID.tab="devis"; await refresh();
+      toast(dv.statut==="devisé" ? "Forfait à prix fixe : le devis est prêt — vous pouvez l'accepter."
+                                 : "Demande transmise au professionnel — vous serez informé(e) de son devis."); return; }
+    if(act==="a-devis-accepter"){ try{ await api("POST",`/api/devis/${id}/accepter`); }catch(err){ toast(err.message||"Erreur",true); return; }
+      await refresh(); toast("Devis accepté — montant engagé sur votre PMV. Le professionnel réalise la prestation."); return; }
+    if(act==="a-devis-refuser"){ await api("POST",`/api/devis/${id}/refuser`); await refresh(); toast("Devis refusé"); return; }
+    if(act==="a-devis-servicefait"){ await api("POST",`/api/devis/${id}/service-fait`); await refresh(); toast("Service fait confirmé — le pro est payé depuis votre PMV"); return; }
+
+    /* — profil aidant (verrou 1 : RIB) — */
+    if(act==="a-profil-edit"){ AID.profilEdit=!AID.profilEdit; render(); return; }
+    if(act==="a-profil-completer"){
+      const iban=pfVal("ai-iban").replace(/\s/g,""), tel=pfVal("ai-tel");
+      if(!iban){ toast("Renseignez votre IBAN (RIB)",true); return; }
+      const profil={ adresse:pfVal("pf-adresse"), cp:pfVal("pf-cp"), ville:pfVal("pf-ville"),
+        marital:pfVal("pf-marital"), foyer:pfVal("pf-foyer"), enfants:pfVal("pf-enfants"),
+        cohabite:pfVal("pf-cohabite"), distance:pfVal("pf-distance"), anciennete:pfVal("pf-anciennete"),
+        heures:pfVal("pf-heures"), nuit:pfVal("pf-nuit"), taches:pfGrp("pf-taches"),
+        statutpro:pfVal("pf-statutpro"), contrat:pfVal("pf-contrat"), temps:pfVal("pf-temps"),
+        poste:pfVal("pf-poste"), flex:pfVal("pf-flex"), amenage:pfGrp("pf-amenage"),
+        coaidants:pfVal("pf-coaidants"), role:pfVal("pf-role"), relais:pfVal("pf-relais"),
+        aidesh:pfGrp("pf-aidesh"), aidesf:pfGrp("pf-aidesf"), aidesf_autre:pfVal("pf-aidesf-autre"),
+        sante:pfVal("pf-sante"), fatigue:pfVal("pf-fatigue"),
+        dispo:pfGrp("pf-dispo"), besoins:pfGrp("pf-besoins") };
+      try{ await api("POST","/api/assures/"+AIDANT_ID+"/profil",{iban,telephone:tel,profil}); }
+      catch(err){ toast(err.message||"Erreur",true); return; }
+      AID.profilEdit=false; await refresh(); toast("Profil enregistré"); return; }
+
+    /* — PFD (verrou 2 : profil du proche de référence) — */
+    if(act==="a-pfd-edit"){ AID.pfdEdit=(AID.pfdEdit===b.dataset.id?null:b.dataset.id); render(); return; }
+    if(act==="a-pfd-add-toggle"){ AID.pfdAddOpen=!AID.pfdAddOpen; render(); return; }
+    if(act==="a-pfd-add"){
+      const prenom=pfVal("pfd-new-prenom")||"Proche", lien=pfVal("pfd-new-lien")||"Père";
+      let r; try{ r=await api("POST","/api/assures/"+AIDANT_ID+"/aides",{prenom,lien}); }
+      catch(err){ toast(err.message||"Erreur",true); return; }
+      AID.pfdAddOpen=false; AID.pfdEdit=r.aides[r.aides.length-1].id; await refresh(); toast("Proche ajouté — complétez son profil"); return; }
+    if(act==="a-pfd-save"){
+      const profil={ naissance:pfVal("pd-naissance"), lieu:pfVal("pd-lieu"), logement:pfVal("pd-logement"),
+        adapte:pfVal("pd-adapte"), environ:pfVal("pd-environ"), nature:pfVal("pd-nature"), patho:pfVal("pd-patho"),
+        mobilite:pfVal("pd-mobilite"), cognitif:pfVal("pd-cognitif"), avq:pfGrp("pd-avq"),
+        isolement:pfVal("pd-isolement"), entourage:pfVal("pd-entourage"),
+        aidesh:pfGrp("pd-aidesh"), aidesf:pfGrp("pd-aidesf"), aidesf_autre:pfVal("pd-aidesf-autre"),
+        aidest:pfGrp("pd-aidest"), risques:pfGrp("pd-risques"), besoins:pfGrp("pd-besoins") };
+      try{ await api("POST","/api/assures/"+AIDANT_ID+"/aides/"+b.dataset.id+"/profil",{profil}); }
+      catch(err){ toast(err.message||"Erreur",true); return; }
+      AID.pfdEdit=null; await refresh(); toast("Profil du proche enregistré"); return; }
+
+    /* — analyse situationnelle — */
+    if(act==="a-analyse-generer"){ await aidGenererAnalyse(); return; }
+    if(act==="a-analyse-valider"){ const t=($("#a-analyse-txt")&&$("#a-analyse-txt").value)||""; if(!t.trim()){ toast("L'analyse est vide",true); return; }
+      try{ await api("POST","/api/assures/"+AIDANT_ID+"/analyse",{texte:t}); }catch(err){ toast(err.message||"Erreur",true); return; }
+      AID.analyseEdit=false; AID.analyseTexte=""; await refresh(); toast("Analyse validée — elle guidera le choix des solutions"); return; }
+    if(act==="a-analyse-modifier"){ AID.analyseEdit=true; AID.analyseTexte=STATE.assure.analyse||""; render(); return; }
+    if(act==="a-analyse-annuler"){ AID.analyseEdit=false; AID.analyseTexte=""; render(); return; }
+
+    /* — remboursements — */
+    if(act==="a-soumettre-remb"){
+      const lib=pfVal("ar-lib"), motif=pfVal("ar-motif"), montant=pfVal("ar-montant").replace(",","."), justif=pfVal("ar-justif")||"justificatif.pdf";
+      if(!lib||!montant){ toast("Renseignez la dépense et le montant",true); return; }
+      try{ await api("POST","/api/remboursements",{assure_id:AIDANT_ID,libelle:lib,motif,montant,justificatif:justif}); }
+      catch(err){ toast(err.message||"Erreur",true); return; }
+      await refresh(); toast("Demande de remboursement envoyée au gestionnaire"); return; }
+  }catch(err){ toast(err.message||"Erreur",true); }
+});
+
+refresh();
+</script>
+</body>
+</html>

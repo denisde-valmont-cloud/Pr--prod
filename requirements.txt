@@ -1,0 +1,3 @@
+# MPA — Portail Aidant (pré-prod)
+# Aucune dépendance externe : bibliothèque standard Python uniquement.
+# Ce fichier (même vide) permet à Render de détecter une application Python.
